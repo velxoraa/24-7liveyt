@@ -1,0 +1,13 @@
+{
+  "name": "velxoraa-24-7liveyt",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KAXMOK 24/7 YouTube livestream chat reader and background command controller",
+  "scripts": {
+    "chat": "node chat_reader.js"
+  },
+  "dependencies": {
+    "youtubei.js": "^13.0.0"
+  }
+}
