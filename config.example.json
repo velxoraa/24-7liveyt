@@ -1,8 +1,7 @@
 {
   "youtube_video_id": "XVF4AhsrUqM",
   "analytics_worker_url": "https://kaxmok-analytics.kaxxmok.workers.dev",
-  "analytics_ingest_path": "",
-  "normal_background": "assets/backgrounds/background.mp4",
-  "birthday_background": "assets/backgrounds/birthday.png",
-  "zmq_endpoint": "tcp://127.0.0.1:5555"
+  "normal_background": "assets/backgrounds/WhatsApp Video 2026-11-14 at 4.16.22 PM.mp4",
+  "songs_directory": "songs",
+  "playlist_rounds": 250
 }
