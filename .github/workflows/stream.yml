@@ -6,7 +6,6 @@ on:
 permissions:
   contents: read
 
-# Starting another run will stop the previous run in this group.
 concurrency:
   group: kaxmok-24-7-livestream
   cancel-in-progress: true
@@ -51,14 +50,52 @@ jobs:
           npm install
 
       - name: Validate configuration and media
+        shell: bash
         run: |
-          if [ -z "$YT_STREAM_KEY" ]; then echo "Missing YT_STREAM_KEY secret"; exit 1; fi
-          if [ -z "$ANALYTICS_INGEST_TOKEN" ]; then echo "Missing ANALYTICS_INGEST_TOKEN secret"; exit 1; fi
-          if [ ! -f "$NORMAL_BACKGROUND" ]; then echo "Normal background video missing: $NORMAL_BACKGROUND"; exit 1; fi
-          found_audio=false
-          for file in songs/*; do
-            case "$file" in
-              *.mp3|*.MP3|*.mpeg|*.MPEG|*.mp2|*.MP2) found_audio=true ;;
-            esac
-          done
-          if [ "$found_audio" != true ]
+          python - <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          required = ("YT_STREAM_KEY", "ANALYTICS_INGEST_TOKEN")
+          missing = [name for name in required if not os.environ.get(name)]
+          if missing:
+              print("Missing required GitHub secret(s): " + ", ".join(missing))
+              sys.exit(1)
+
+          background = Path(os.environ["NORMAL_BACKGROUND"])
+          if not background.is_file():
+              print(f"Normal background video missing: {background}")
+              sys.exit(1)
+
+          songs_dir = Path("songs")
+          audio = [p for p in songs_dir.iterdir() if p.is_file() and p.suffix.lower() in {".mp3", ".mpeg", ".mp2"}] if songs_dir.is_dir() else []
+          if not audio:
+              print("No MP3/MPEG audio files found in songs/")
+              sys.exit(1)
+
+          print(f"Validation passed: {len(audio)} audio file(s), background found.")
+          PY
+          ffmpeg -version | head -n 1
+          node --version
+          python --version
+
+      - name: Start stream and chat reader
+        shell: bash
+        run: |
+          set -m
+          python stream.py &
+          STREAM_PID=$!
+          node chat_reader.js &
+          CHAT_PID=$!
+
+          cleanup() {
+            kill "$CHAT_PID" "$STREAM_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT INT TERM
+
+          wait "$STREAM_PID"
+          STREAM_STATUS=$?
+          kill "$CHAT_PID" 2>/dev/null || true
+          wait "$CHAT_PID" 2>/dev/null || true
+          exit "$STREAM_STATUS"
