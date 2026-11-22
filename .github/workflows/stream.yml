@@ -55,7 +55,13 @@ jobs:
           if [ -z "$YT_STREAM_KEY" ]; then echo "Missing YT_STREAM_KEY secret"; exit 1; fi
           if [ -z "$ANALYTICS_INGEST_TOKEN" ]; then echo "Missing ANALYTICS_INGEST_TOKEN secret"; exit 1; fi
           if [ ! -f "$NORMAL_BACKGROUND" ]; then echo "Normal background video missing: $NORMAL_BACKGROUND"; exit 1; fi
-          if ! find songs -maxdepth 1 -type f | grep -Eiq '\\.(mp3|mpeg|mp2)
+          found_audio=false
+          for file in songs/*; do
+            case "$file" in
+              *.mp3|*.MP3|*.mpeg|*.MPEG|*.mp2|*.MP2) found_audio=true ;;
+            esac
+          done
+          if [ "$found_audio" != true ]; then echo "No audio files found in songs/"; exit 1; fi
           ffmpeg -version | head -n 1
           node --version
           python --version
