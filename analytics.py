@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from typing import Any
 
 import requests
@@ -46,19 +47,35 @@ def ingest(raw: dict[str, Any]) -> None:
     if not item:
         return
 
-    response = session.post(
-        f"{ANALYTICS_URL}/api/ingest",
-        headers={
-            "Authorization": f"Bearer {INGEST_TOKEN}",
-            "Content-Type": "application/json",
-        },
-        json={"messages": [item]},
-        timeout=HTTP_TIMEOUT,
-    )
-    response.raise_for_status()
-    payload = response.json()
-    if not payload.get("ok"):
-        raise RuntimeError(f"Analytics Worker rejected message: {payload}")
+    last_error: Exception | None = None
+    payload: dict[str, Any] | None = None
+    for attempt in range(1, 4):
+        try:
+            response = session.post(
+                f"{ANALYTICS_URL}/api/ingest",
+                headers={
+                    "Authorization": f"Bearer {INGEST_TOKEN}",
+                    "Content-Type": "application/json",
+                },
+                json={"messages": [item]},
+                timeout=HTTP_TIMEOUT,
+            )
+            response.raise_for_status()
+            candidate = response.json()
+            if not isinstance(candidate, dict) or not candidate.get("ok"):
+                raise RuntimeError(f"Analytics Worker rejected message: {candidate}")
+            payload = candidate
+            break
+        except Exception as exc:
+            last_error = exc
+            if attempt < 3:
+                time.sleep(0.5 * (2 ** (attempt - 1)))
+
+    if payload is None:
+        raise RuntimeError(f"Analytics Worker ingest failed after 3 attempts: {last_error}")
+
+    # Node reads stdout as JSONL, so this is a reliable delivery confirmation.
+    print(json.dumps({"type": "ingested"}, ensure_ascii=False), flush=True)
 
     for reply in payload.get("replies", []):
         if isinstance(reply, dict):
