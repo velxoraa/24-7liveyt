@@ -1,39 +1,119 @@
 import { Innertube, YTNodes } from "youtubei.js";
 import { spawn } from "node:child_process";
+import { google } from "googleapis";
 import { writeFile, rename } from "node:fs/promises";
 
 const VIDEO_ID = process.env.YT_VIDEO_ID || "FhD_vXt8MEM";
-const ANALYTICS_URL = process.env.ANALYTICS_URL || "https://kaxmok-analytics.kaxxmok.workers.dev";
+const ANALYTICS_URL = (process.env.ANALYTICS_URL || "https://kaxmok-analytics.kaxxmok.workers.dev").replace(/\/$/, "");
 const PYTHON = process.env.PYTHON || "python";
 const BG_COMMAND_FILE = "bg_command.txt";
 
-let receivedMessages = 0;
-let stopping = false;
 let liveChat = null;
+let python = null;
+let stopping = false;
+let receivedMessages = 0;
+let workerAccepted = 0;
+let bgWriteQueue = Promise.resolve();
+let youtubeApi = null;
+let liveChatId = null;
+let sendQueue = Promise.resolve();
+let lastSendAt = 0;
 
 function avatarUrl(author) {
   const thumbs = author?.thumbnails || [];
   return thumbs.length ? (thumbs[thumbs.length - 1].url || "") : "";
 }
 
+function parseJsonSecret(name) {
+  const value = process.env[name];
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    console.warn(`${name} is not valid JSON; optional YouTube reply sending is disabled.`);
+    return null;
+  }
+}
+
+// Optional reply sender. It never blocks public incoming-chat reading.
+async function initializeYouTubeSender() {
+  const token = parseJsonSecret("YT_TOKEN_JSON");
+  const client = parseJsonSecret("YT_CLIENT_SECRET_JSON");
+  if (!token || !client) {
+    console.log("Optional YouTube reply sender disabled; incoming chat and Worker commands remain enabled.");
+    return;
+  }
+
+  const credentials = client.installed || client.web || client;
+  if (!credentials.client_id || !credentials.client_secret) {
+    console.warn("OAuth client JSON is missing client_id/client_secret; reply sender disabled.");
+    return;
+  }
+
+  const oauth = new google.auth.OAuth2(
+    credentials.client_id,
+    credentials.client_secret,
+    (credentials.redirect_uris || ["http://localhost"])[0]
+  );
+  oauth.setCredentials(token);
+  youtubeApi = google.youtube({ version: "v3", auth: oauth });
+
+  const broadcast = await youtubeApi.liveBroadcasts.list({
+    part: ["snippet"],
+    id: [VIDEO_ID]
+  });
+  liveChatId = broadcast.data.items?.[0]?.snippet?.liveChatId || null;
+  if (liveChatId) console.log("Optional YouTube reply sender is ready.");
+  else console.warn("No active liveChatId found; Worker replies will be logged but not posted.");
+}
+
+function sendReply(message) {
+  if (!youtubeApi || !liveChatId || !message || stopping) return;
+  sendQueue = sendQueue.then(async () => {
+    const wait = Math.max(0, 1500 - (Date.now() - lastSendAt));
+    if (wait) await new Promise(resolve => setTimeout(resolve, wait));
+    await youtubeApi.liveChatMessages.insert({
+      part: ["snippet"],
+      requestBody: {
+        snippet: {
+          liveChatId,
+          type: "textMessageEvent",
+          textMessageDetails: { messageText: String(message).slice(0, 200) }
+        }
+      }
+    });
+    lastSendAt = Date.now();
+    console.log("Posted Worker reply to YouTube live chat.");
+  }).catch(error => console.error("Could not post Worker reply:", error.message));
+  return sendQueue;
+}
+
+function queueBackgroundChange(number, author) {
+  const tempPath = `${BG_COMMAND_FILE}.${process.pid}.tmp`;
+  bgWriteQueue = bgWriteQueue
+    .then(() => writeFile(tempPath, String(number) + "\n", "utf8"))
+    .then(() => rename(tempPath, BG_COMMAND_FILE))
+    .then(() => console.log(`Background change requested: !bg ${number} by ${author}`))
+    .catch(error => console.error("Could not send background command to stream:", error.message));
+}
+
 async function main() {
-  console.log(`Starting unauthenticated YouTube chat reader for video ${VIDEO_ID}.`);
+  console.log(`Starting public YouTube chat reader for video ${VIDEO_ID}.`);
 
   if (!process.env.ANALYTICS_INGEST_TOKEN) {
     throw new Error("Missing ANALYTICS_INGEST_TOKEN GitHub Actions secret.");
   }
 
-  const python = spawn(PYTHON, ["-u", "analytics.py"], {
+  python = spawn(PYTHON, ["-u", "analytics.py"], {
     stdio: ["pipe", "pipe", "inherit"],
     env: { ...process.env, ANALYTICS_URL }
   });
-
-  python.on("error", error => {
-    console.error("Could not start analytics.py:", error.message);
-    process.exitCode = 1;
-  });
+  python.on("error", error => console.error("Could not start analytics.py:", error.message));
   python.stdin.on("error", error => {
-    console.error("Analytics bridge input error:", error.message);
+    if (!stopping) console.error("Analytics bridge input error:", error.message);
+  });
+  python.on("exit", code => {
+    if (!stopping) console.error("analytics.py exited unexpectedly with code", code);
   });
 
   let output = "";
@@ -48,7 +128,12 @@ async function main() {
         const event = JSON.parse(line);
         if (event.type === "reply") {
           console.log(`Worker reply for ${event.author || "viewer"}: ${event.text || ""}`);
-          console.warn("Worker requested a chat reply, but unauthenticated mode cannot post messages to YouTube.");
+          void sendReply(event.text);
+        } else if (event.type === "ingested") {
+          workerAccepted += 1;
+          if (workerAccepted === 1 || workerAccepted % 10 === 0) {
+            console.log(`Analytics Worker accepted ${workerAccepted} chat message(s).`);
+          }
         } else if (event.type === "error") {
           console.error("Analytics bridge:", event.error);
         }
@@ -58,36 +143,34 @@ async function main() {
     }
   });
 
-  python.on("exit", code => {
-    console.error("analytics.py exited with code", code);
-    if (code !== 0 && !stopping) console.error("Analytics forwarding has stopped; the video stream can continue.");
-  });
-
   const innertube = await Innertube.create();
-  // This livestream reports embeddable=false, so TV_EMBEDDED cannot open it.
-  // Try Android first; getBasicInfo avoids the watch-next request that previously
-  // triggered a 403 with getInfo(). Fall back to WEB if Android is blocked.
   let info = null;
   let lastError = null;
-  for (const client of ["ANDROID", "WEB"]) {
+
+  // Use the normal watch client first. Basic info avoids the extra /next request
+  // that caused earlier 403s. Android is a fallback; TV_EMBEDDED rejects this
+  // broadcast because YouTube reports that it is not embeddable.
+  for (const client of ["WEB", "ANDROID"]) {
     try {
-      console.log(`Connecting to YouTube public chat using the ${client} client...`);
+      console.log(`Connecting to public live chat with YouTube ${client} client...`);
       const candidate = await innertube.getBasicInfo(VIDEO_ID, client);
       const candidateChat = candidate.getLiveChat();
+      if (!candidateChat) throw new Error("YouTube returned no live-chat continuation.");
       info = candidate;
       liveChat = candidateChat;
-      console.log(`YouTube video info and live-chat continuation loaded with ${client}.`);
+      console.log(`Loaded video info and live-chat continuation using ${client}.`);
       break;
     } catch (error) {
       lastError = error;
       console.error(`YouTube ${client} client failed:`, error?.message || error);
     }
   }
-  if (!info || !liveChat) {
-    throw new Error(`Could not load public live chat with ANDROID or WEB: ${lastError?.message || "No live-chat continuation returned"}`);
-  }
-  const ownerChannelId = info.basic_info?.channel_id || "";
 
+  if (!info || !liveChat) {
+    throw new Error(`Could not load public live chat using WEB or ANDROID: ${lastError?.message || "No live-chat continuation returned"}`);
+  }
+
+  const ownerChannelId = info.basic_info?.channel_id || "";
   liveChat.on("chat-update", action => {
     try {
       if (!action.is(YTNodes.AddChatItemAction)) return;
@@ -101,49 +184,50 @@ async function main() {
       const message = item.message?.toString?.() || "";
       if (!message) return;
 
-      // Background commands are handled locally and never depend on Cloudflare.
+      // Owner commands are intentionally allowed, but owner messages are not
+      // forwarded to the Worker leaderboard/analytics.
+      const authorName = author?.name?.toString?.() || authorId;
       const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
-      if (bgMatch) {
-        const tempPath = BG_COMMAND_FILE + ".tmp";
-        void writeFile(tempPath, bgMatch[1] + "\n", "utf8")
-          .then(() => rename(tempPath, BG_COMMAND_FILE))
-          .then(() => console.log(`Background change requested: !bg ${bgMatch[1]} by ${author.name?.toString?.() || authorId}`))
-          .catch(error => console.error("Could not send background command to stream:", error.message));
-      }
+      if (bgMatch) queueBackgroundChange(bgMatch[1], authorName);
 
-      // Owner commands can control the stream, but owner messages stay out of analytics.
       if (authorId === ownerChannelId) return;
 
       const event = {
         author_id: authorId,
-        author: author?.name?.toString?.() || "Viewer",
+        author: authorName,
         avatar_url: avatarUrl(author),
         is_moderator: Boolean(author?.is_moderator || author?.is_owner),
         text: message
       };
 
       if (!python.stdin.write(JSON.stringify(event) + "\n")) {
-        console.warn("Analytics bridge is backpressured; waiting for it to catch up.");
+        console.warn("Analytics bridge is backpressured; Node is buffering chat events.");
       }
       receivedMessages += 1;
       if (receivedMessages === 1 || receivedMessages % 10 === 0) {
-        console.log(`Received ${receivedMessages} viewer chat message(s); forwarding to analytics bridge.`);
+        console.log(`Received ${receivedMessages} viewer chat message(s); forwarding to Analytics Worker.`);
       }
     } catch (error) {
       console.error("Chat event handling error:", error.message);
     }
   });
 
-  liveChat.on("error", error => console.error("YouTube live chat error:", error?.message || error));
-  liveChat.start();
-  console.log(`Reading public live chat for video ${VIDEO_ID}; no OAuth secrets required.`);
+  liveChat.on("error", error => console.error("YouTube live chat polling error:", error?.message || error));
+  await liveChat.start();
+  console.log(`PUBLIC CHAT READER CONNECTED: forwarding messages to ${ANALYTICS_URL}/api/ingest.`);
+
+  // Replies are optional. Incoming chat remains active if OAuth is absent or invalid.
+  void initializeYouTubeSender().catch(error => {
+    console.error("Optional YouTube reply sender unavailable; incoming chat continues:", error.message);
+  });
 
   const shutdown = () => {
     if (stopping) return;
     stopping = true;
     console.log("Stopping YouTube chat reader...");
     try { liveChat?.stop(); } catch {}
-    python.stdin.end();
+    try { python?.stdin.end(); } catch {}
+    try { python?.kill("SIGTERM"); } catch {}
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
@@ -151,5 +235,8 @@ async function main() {
 
 main().catch(error => {
   console.error("CHAT READER ERROR:", error);
+  try { liveChat?.stop(); } catch {}
+  try { python?.stdin.end(); } catch {}
+  try { python?.kill("SIGTERM"); } catch {}
   process.exit(1);
 });
