@@ -2,7 +2,7 @@ import { Innertube, YTNodes } from "youtubei.js";
 import { spawn } from "node:child_process";
 import { google } from "googleapis";
 
-const VIDEO_ID = process.env.YT_VIDEO_ID || "XVF4AhsrUqM";
+const VIDEO_ID = process.env.YT_VIDEO_ID || "FhD_vXt8MEM";
 const ANALYTICS_URL = process.env.ANALYTICS_URL || "https://kaxmok-analytics.kaxxmok.workers.dev";
 const PYTHON = process.env.PYTHON || "python";
 
