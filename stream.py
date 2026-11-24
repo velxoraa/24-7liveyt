@@ -51,7 +51,7 @@ def build_playlist() -> Path:
     fd, filename = tempfile.mkstemp(prefix="kaxmok-playlist-", suffix=".txt")
     with os.fdopen(fd, "w", encoding="utf-8") as file:
         for song in playlist:
-            file.write(f"file '{ffconcat_quote(song)}'\\n")
+            file.write(f"file '{ffconcat_quote(song)}'\n")
     return Path(filename)
 
 
