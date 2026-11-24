@@ -189,28 +189,17 @@ async function main() {
     return;
   }
 
-  let info = null;
-  let lastError = null;
-  let activeClient = null;
-  for (const client of ["WEB", "ANDROID"]) {
-    try {
-      console.log("Connecting to public live chat with YouTube " + client + " client...");
-      const innertube = await Innertube.create({ client_type: client });
-      const candidate = await innertube.getBasicInfo(VIDEO_ID);
-      const candidateChat = candidate.getLiveChat();
-      if (!candidateChat) throw new Error("YouTube returned no live-chat continuation.");
-      info = candidate;
-      liveChat = candidateChat;
-      activeClient = client;
-      ownerChannelId = info.basic_info?.channel_id || ownerChannelId;
-      console.log("Loaded video info and live-chat continuation using " + client + " session.");
-      break;
-    } catch (error) {
-      lastError = error;
-      console.error("YouTube " + client + " session failed:", error?.message || error);
-    }
+  // Use the same public InnerTube flow that was present in run #10.
+  // Do not call applyFilter(): youtubei.js 13.4.0 throws before initial chat info exists.
+  const innertube = await Innertube.create();
+  const info = await innertube.getInfo(VIDEO_ID);
+  ownerChannelId = info.basic_info?.channel_id || ownerChannelId;
+  liveChat = info.getLiveChat();
+  if (!liveChat) {
+    throw new Error("No live-chat continuation returned. Confirm the stream is live and chat is enabled.");
   }
-  if (!info || !liveChat) throw new Error("Could not load public live chat using WEB or ANDROID: " + (lastError?.message || "No live-chat continuation returned"));
+  console.log("Loaded video info and live-chat continuation using the public InnerTube session.");
+
   liveChat.on("chat-update", action => {
     try {
       if (!action.is(YTNodes.AddChatItemAction)) return;
@@ -232,7 +221,7 @@ async function main() {
 
   liveChat.on("error", error => console.error("YouTube live chat polling error:", error?.message || error));
   await liveChat.start();
-  console.log(`PUBLIC CHAT READER CONNECTED with ${activeClient}: forwarding messages to ${ANALYTICS_URL}/api/ingest.`);
+  console.log(`PUBLIC CHAT READER CONNECTED: forwarding messages to ${ANALYTICS_URL}/api/ingest.`);
 
   // OAuth sender was initialized above when credentials were available.
 
