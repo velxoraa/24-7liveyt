@@ -17,8 +17,6 @@ jobs:
     env:
       YT_STREAM_KEY: ${{ secrets.YT_STREAM_KEY }}
       ANALYTICS_INGEST_TOKEN: ${{ secrets.ANALYTICS_INGEST_TOKEN }}
-      YT_TOKEN_JSON: ${{ secrets.YT_TOKEN_JSON }}
-      YT_CLIENT_SECRET_JSON: ${{ secrets.YT_CLIENT_SECRET_JSON }}
       YT_VIDEO_ID: FhD_vXt8MEM
       ANALYTICS_URL: https://kaxmok-analytics.kaxxmok.workers.dev
       NORMAL_BACKGROUND: assets/backgrounds/WhatsApp Video 2026-11-14 at 4.16.22 PM.mp4
@@ -80,46 +78,40 @@ jobs:
           node --version
           python --version
 
-      - name: Start stream and optional chat reader
+      - name: Start stream and public chat reader
         shell: bash
         run: |
           set -u
 
           python stream.py &
           STREAM_PID=$!
-          CHAT_PID=""
+
+          # Chat reading is public and does not require OAuth secrets.
+          # Restart the reader if YouTube temporarily blocks or disconnects it.
+          (
+            while kill -0 "$STREAM_PID" 2>/dev/null; do
+              echo "Starting public YouTube chat reader (no OAuth required)..."
+              node chat_reader.js
+              CHAT_STATUS=$?
+              if kill -0 "$STREAM_PID" 2>/dev/null; then
+                echo "WARNING: Chat reader exited with code $CHAT_STATUS. Retrying in 15 seconds; stream audio remains running."
+                sleep 15
+              fi
+            done
+          ) &
+          CHAT_SUPERVISOR_PID=$!
 
           cleanup() {
-            if [[ -n "$CHAT_PID" ]]; then
-              kill "$CHAT_PID" 2>/dev/null || true
-              wait "$CHAT_PID" 2>/dev/null || true
-            fi
+            kill "$CHAT_SUPERVISOR_PID" 2>/dev/null || true
+            pkill -P "$CHAT_SUPERVISOR_PID" 2>/dev/null || true
             kill "$STREAM_PID" 2>/dev/null || true
+            wait "$CHAT_SUPERVISOR_PID" 2>/dev/null || true
             wait "$STREAM_PID" 2>/dev/null || true
           }
           trap cleanup EXIT INT TERM
 
-          echo "Started FFmpeg stream process (PID $STREAM_PID)."
-
-          if [[ -n "$YT_TOKEN_JSON" && -n "$YT_CLIENT_SECRET_JSON" ]]; then
-            node chat_reader.js &
-            CHAT_PID=$!
-            echo "Started YouTube chat reader process (PID $CHAT_PID)."
-
-            wait -n -p FINISHED_PID "$STREAM_PID" "$CHAT_PID"
-            FIRST_STATUS=$?
-
-            if [[ "$FINISHED_PID" == "$CHAT_PID" ]]; then
-              echo "WARNING: YouTube chat reader exited (code $FIRST_STATUS); keeping the music livestream running without chat controls."
-              wait "$STREAM_PID"
-              exit $?
-            fi
-
-            echo "FFmpeg stream process exited with code $FIRST_STATUS."
-            exit "$FIRST_STATUS"
-          else
-            echo "WARNING: YT_TOKEN_JSON and/or YT_CLIENT_SECRET_JSON are missing."
-            echo "Music livestream will continue, but YouTube chat reading and !bg commands are disabled."
-            wait "$STREAM_PID"
-            exit $?
-          fi
+          echo "Started FFmpeg stream (PID $STREAM_PID) and chat supervisor (PID $CHAT_SUPERVISOR_PID)."
+          wait "$STREAM_PID"
+          STREAM_STATUS=$?
+          echo "FFmpeg stream exited with code $STREAM_STATUS."
+          exit "$STREAM_STATUS"
