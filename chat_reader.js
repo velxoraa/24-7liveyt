@@ -1,10 +1,12 @@
 import { Innertube, YTNodes } from "youtubei.js";
 import { spawn } from "node:child_process";
+import { writeFile, rename } from "node:fs/promises";
 import { google } from "googleapis";
 
 const VIDEO_ID = process.env.YT_VIDEO_ID || "FhD_vXt8MEM";
 const ANALYTICS_URL = process.env.ANALYTICS_URL || "https://kaxmok-analytics.kaxxmok.workers.dev";
 const PYTHON = process.env.PYTHON || "python";
+const BG_COMMAND_FILE = "bg_command.txt";
 
 let liveChatId = null;
 let youtubeApi = null;
@@ -144,11 +146,23 @@ async function main() {
 
       const author = item.author;
       const authorId = author?.id || "";
-      // Keep the existing owner-message exclusion; viewer messages are forwarded.
-      if (!authorId || authorId === ownerChannelId) return;
+      if (!authorId) return;
 
       const message = item.message?.toString?.() || "";
       if (!message) return;
+
+      // Handle background commands locally so they never depend on the Worker.
+      const bgMatch = message.trim().match(/^!bg\\s+(\\d+)$/i);
+      if (bgMatch) {
+        const tempPath = BG_COMMAND_FILE + ".tmp";
+        void writeFile(tempPath, bgMatch[1] + "\\n", "utf8")
+          .then(() => rename(tempPath, BG_COMMAND_FILE))
+          .then(() => console.log(`Background change requested: !bg ${bgMatch[1]}`))
+          .catch(error => console.error("Could not send background command to stream:", error.message));
+      }
+
+      // Owner commands can control the stream, but owner messages stay out of the leaderboard.
+      if (authorId === ownerChannelId) return;
 
       const event = {
         author_id: authorId,
