@@ -16,6 +16,7 @@ let workerAccepted = 0;
 let bgWriteQueue = Promise.resolve();
 let youtubeApi = null;
 let liveChatId = null;
+let ownerChannelId = "";
 let sendQueue = Promise.resolve();
 let lastSendAt = 0;
 
@@ -62,9 +63,11 @@ async function initializeYouTubeSender() {
     part: ["snippet"],
     id: [VIDEO_ID]
   });
-  liveChatId = broadcast.data.items?.[0]?.snippet?.liveChatId || null;
-  if (liveChatId) console.log("Optional YouTube reply sender is ready.");
-  else console.warn("No active liveChatId found; Worker replies will be logged but not posted.");
+  const broadcastItem = broadcast.data.items?.[0];
+  liveChatId = broadcastItem?.snippet?.liveChatId || null;
+  ownerChannelId = broadcastItem?.snippet?.channelId || "";
+  if (liveChatId) console.log("Authenticated YouTube Live Chat API is ready.");
+  else console.warn("No active liveChatId found; authenticated chat polling is unavailable.");
 }
 
 function sendReply(message) {
@@ -88,6 +91,33 @@ function sendReply(message) {
   return sendQueue;
 }
 
+function handleIncomingMessage({ authorId, authorName, avatar, isModerator, text: message }) {
+  if (!authorId || !message) return;
+  const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
+  if (bgMatch) queueBackgroundChange(bgMatch[1], authorName || authorId);
+  if (ownerChannelId && authorId === ownerChannelId) return;
+  const event = { author_id: authorId, author: authorName || authorId, avatar_url: avatar || "", is_moderator: Boolean(isModerator), text: message };
+  if (!python.stdin.write(JSON.stringify(event) + "\n")) console.warn("Analytics bridge is backpressured; Node is buffering chat events.");
+  receivedMessages += 1;
+  if (receivedMessages === 1 || receivedMessages % 10 === 0) console.log("Received " + receivedMessages + " viewer chat message(s); forwarding to Analytics Worker.");
+}
+
+async function pollAuthenticatedLiveChat() {
+  let pageToken;
+  console.log("AUTHENTICATED CHAT READER CONNECTED: polling liveChatId for " + VIDEO_ID + ".");
+  while (!stopping) {
+    const response = await youtubeApi.liveChatMessages.list({ liveChatId, part: ["snippet", "authorDetails"], pageToken });
+    pageToken = response.data.nextPageToken || pageToken;
+    for (const item of response.data.items || []) {
+      const snippet = item.snippet || {};
+      if (snippet.type !== "textMessageEvent") continue;
+      const author = item.authorDetails || {};
+      handleIncomingMessage({ authorId: author.channelId, authorName: author.displayName, avatar: author.profileImageUrl, isModerator: author.isChatModerator || author.isChatOwner, text: snippet.textMessageDetails?.messageText || "" });
+    }
+    const waitMs = Math.max(1000, Number(response.data.pollingIntervalMillis) || 5000);
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+  }
+}
 function queueBackgroundChange(number, author) {
   const tempPath = `${BG_COMMAND_FILE}.${process.pid}.tmp`;
   bgWriteQueue = bgWriteQueue
@@ -143,42 +173,44 @@ async function main() {
     }
   });
 
+  // Prefer the official authenticated Live Chat API when OAuth credentials are configured.
+  await initializeYouTubeSender().catch(error => console.error("Authenticated chat setup failed; trying public fallback:", error.message));
+  if (youtubeApi && liveChatId) {
+    const shutdown = () => {
+      if (stopping) return;
+      stopping = true;
+      console.log("Stopping YouTube chat reader...");
+      try { python?.stdin.end(); } catch {}
+      try { python?.kill("SIGTERM"); } catch {}
+    };
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+    await pollAuthenticatedLiveChat();
+    return;
+  }
+
   let info = null;
   let lastError = null;
   let activeClient = null;
-
-  // Create a separate InnerTube session for each client profile. This ensures
-  // the session headers/config match the client used for the video-info request.
-  // TV_EMBEDDED can avoid some WEB/ANDROID bot checks; keep normal clients as fallbacks.
-  for (const client of ["TV_EMBEDDED", "WEB", "ANDROID"]) {
+  for (const client of ["WEB", "ANDROID"]) {
     try {
-      console.log(`Connecting to public live chat with YouTube ${client} client...`);
-      const innertube = await Innertube.create({
-        client_type: client,
-        retrieve_player: false
-      });
+      console.log("Connecting to public live chat with YouTube " + client + " client...");
+      const innertube = await Innertube.create({ client_type: client });
       const candidate = await innertube.getBasicInfo(VIDEO_ID);
       const candidateChat = candidate.getLiveChat();
-      if (!candidateChat) {
-        const liveState = candidate.basic_info?.is_live ? "live" : "not marked live";
-        throw new Error(`YouTube returned no live-chat continuation (video is ${liveState}).`);
-      }
+      if (!candidateChat) throw new Error("YouTube returned no live-chat continuation.");
       info = candidate;
       liveChat = candidateChat;
       activeClient = client;
-      console.log(`Loaded video info and live-chat continuation using ${client} session.`);
+      ownerChannelId = info.basic_info?.channel_id || ownerChannelId;
+      console.log("Loaded video info and live-chat continuation using " + client + " session.");
       break;
     } catch (error) {
       lastError = error;
-      console.error(`YouTube ${client} session failed:`, error?.message || error);
+      console.error("YouTube " + client + " session failed:", error?.message || error);
     }
   }
-
-  if (!info || !liveChat) {
-    throw new Error(`Could not load public live chat using TV_EMBEDDED, WEB or ANDROID: ${lastError?.message || "No live-chat continuation returned"}`);
-  }
-
-  const ownerChannelId = info.basic_info?.channel_id || "";
+  if (!info || !liveChat) throw new Error("Could not load public live chat using WEB or ANDROID: " + (lastError?.message || "No live-chat continuation returned"));
   liveChat.on("chat-update", action => {
     try {
       if (!action.is(YTNodes.AddChatItemAction)) return;
@@ -186,35 +218,13 @@ async function main() {
       if (!item || item.type !== "LiveChatTextMessage") return;
 
       const author = item.author;
-      const authorId = author?.id || "";
-      if (!authorId) return;
-
-      const message = item.message?.toString?.() || "";
-      if (!message) return;
-
-      // Owner commands are intentionally allowed, but owner messages are not
-      // forwarded to the Worker leaderboard/analytics.
-      const authorName = author?.name?.toString?.() || authorId;
-      const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
-      if (bgMatch) queueBackgroundChange(bgMatch[1], authorName);
-
-      if (authorId === ownerChannelId) return;
-
-      const event = {
-        author_id: authorId,
-        author: authorName,
-        avatar_url: avatarUrl(author),
-        is_moderator: Boolean(author?.is_moderator || author?.is_owner),
-        text: message
-      };
-
-      if (!python.stdin.write(JSON.stringify(event) + "\n")) {
-        console.warn("Analytics bridge is backpressured; Node is buffering chat events.");
-      }
-      receivedMessages += 1;
-      if (receivedMessages === 1 || receivedMessages % 10 === 0) {
-        console.log(`Received ${receivedMessages} viewer chat message(s); forwarding to Analytics Worker.`);
-      }
+      handleIncomingMessage({
+        authorId: author?.id || "",
+        authorName: author?.name?.toString?.() || "",
+        avatar: avatarUrl(author),
+        isModerator: Boolean(author?.is_moderator || author?.is_owner),
+        text: item.message?.toString?.() || ""
+      });
     } catch (error) {
       console.error("Chat event handling error:", error.message);
     }
@@ -224,10 +234,7 @@ async function main() {
   await liveChat.start();
   console.log(`PUBLIC CHAT READER CONNECTED with ${activeClient}: forwarding messages to ${ANALYTICS_URL}/api/ingest.`);
 
-  // Replies are optional. Incoming chat remains active if OAuth is absent or invalid.
-  void initializeYouTubeSender().catch(error => {
-    console.error("Optional YouTube reply sender unavailable; incoming chat continues:", error.message);
-  });
+  // OAuth sender was initialized above when credentials were available.
 
   const shutdown = () => {
     if (stopping) return;
