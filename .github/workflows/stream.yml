@@ -80,37 +80,46 @@ jobs:
           node --version
           python --version
 
-      - name: Start stream and chat reader
+      - name: Start stream and optional chat reader
         shell: bash
         run: |
-          set -m
-          set +e
+          set -u
 
           python stream.py &
           STREAM_PID=$!
-          node chat_reader.js &
-          CHAT_PID=$!
+          CHAT_PID=""
 
           cleanup() {
-            kill "$CHAT_PID" "$STREAM_PID" 2>/dev/null || true
-            wait "$CHAT_PID" "$STREAM_PID" 2>/dev/null || true
+            if [[ -n "$CHAT_PID" ]]; then
+              kill "$CHAT_PID" 2>/dev/null || true
+              wait "$CHAT_PID" 2>/dev/null || true
+            fi
+            kill "$STREAM_PID" 2>/dev/null || true
+            wait "$STREAM_PID" 2>/dev/null || true
           }
           trap cleanup EXIT INT TERM
 
           echo "Started FFmpeg stream process (PID $STREAM_PID)."
-          echo "Started YouTube chat reader process (PID $CHAT_PID)."
 
-          wait -n -p FINISHED_PID "$STREAM_PID" "$CHAT_PID"
-          FIRST_STATUS=$?
+          if [[ -n "$YT_TOKEN_JSON" && -n "$YT_CLIENT_SECRET_JSON" ]]; then
+            node chat_reader.js &
+            CHAT_PID=$!
+            echo "Started YouTube chat reader process (PID $CHAT_PID)."
 
-          if [[ "$FINISHED_PID" == "$CHAT_PID" ]]; then
-            echo "ERROR: YouTube chat reader exited while the stream was still running (exit code $FIRST_STATUS)."
-            kill "$STREAM_PID" 2>/dev/null || true
-            wait "$STREAM_PID" 2>/dev/null || true
-            exit 1
+            wait -n -p FINISHED_PID "$STREAM_PID" "$CHAT_PID"
+            FIRST_STATUS=$?
+
+            if [[ "$FINISHED_PID" == "$CHAT_PID" ]]; then
+              echo "WARNING: YouTube chat reader exited (code $FIRST_STATUS); keeping the music livestream running without chat controls."
+              wait "$STREAM_PID"
+              exit $?
+            fi
+
+            echo "FFmpeg stream process exited with code $FIRST_STATUS."
+            exit "$FIRST_STATUS"
+          else
+            echo "WARNING: YT_TOKEN_JSON and/or YT_CLIENT_SECRET_JSON are missing."
+            echo "Music livestream will continue, but YouTube chat reading and !bg commands are disabled."
+            wait "$STREAM_PID"
+            exit $?
           fi
-
-          echo "FFmpeg stream process exited with code $FIRST_STATUS."
-          kill "$CHAT_PID" 2>/dev/null || true
-          wait "$CHAT_PID" 2>/dev/null || true
-          exit "$FIRST_STATUS"
