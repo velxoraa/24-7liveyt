@@ -84,6 +84,8 @@ jobs:
         shell: bash
         run: |
           set -m
+          set +e
+
           python stream.py &
           STREAM_PID=$!
           node chat_reader.js &
@@ -91,11 +93,24 @@ jobs:
 
           cleanup() {
             kill "$CHAT_PID" "$STREAM_PID" 2>/dev/null || true
+            wait "$CHAT_PID" "$STREAM_PID" 2>/dev/null || true
           }
           trap cleanup EXIT INT TERM
 
-          wait "$STREAM_PID"
-          STREAM_STATUS=$?
+          echo "Started FFmpeg stream process (PID $STREAM_PID)."
+          echo "Started YouTube chat reader process (PID $CHAT_PID)."
+
+          wait -n -p FINISHED_PID "$STREAM_PID" "$CHAT_PID"
+          FIRST_STATUS=$?
+
+          if [[ "$FINISHED_PID" == "$CHAT_PID" ]]; then
+            echo "ERROR: YouTube chat reader exited while the stream was still running (exit code $FIRST_STATUS)."
+            kill "$STREAM_PID" 2>/dev/null || true
+            wait "$STREAM_PID" 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "FFmpeg stream process exited with code $FIRST_STATUS."
           kill "$CHAT_PID" 2>/dev/null || true
           wait "$CHAT_PID" 2>/dev/null || true
-          exit "$STREAM_STATUS"
+          exit "$FIRST_STATUS"
