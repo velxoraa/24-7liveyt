@@ -17,6 +17,8 @@ jobs:
     env:
       YT_STREAM_KEY: ${{ secrets.YT_STREAM_KEY }}
       ANALYTICS_INGEST_TOKEN: ${{ secrets.ANALYTICS_INGEST_TOKEN }}
+      YT_TOKEN_JSON: ${{ secrets.YT_TOKEN_JSON }}
+      YT_CLIENT_SECRET_JSON: ${{ secrets.YT_CLIENT_SECRET_JSON }}
       YT_VIDEO_ID: FhD_vXt8MEM
       ANALYTICS_URL: https://kaxmok-analytics.kaxxmok.workers.dev
       NORMAL_BACKGROUND: assets/backgrounds/WhatsApp Video 2026-11-14 at 4.16.22 PM.mp4
