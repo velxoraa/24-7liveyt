@@ -143,26 +143,34 @@ async function main() {
     }
   });
 
-  const innertube = await Innertube.create();
   let info = null;
   let lastError = null;
+  let activeClient = null;
 
-  // Try TV_EMBEDDED first because recent YouTube.js reports show WEB/ANDROID
-  // can be bot-blocked for live broadcasts. Keep WEB and ANDROID as fallbacks.
+  // Create a separate InnerTube session for each client profile. This ensures
+  // the session headers/config match the client used for the video-info request.
+  // TV_EMBEDDED can avoid some WEB/ANDROID bot checks; keep normal clients as fallbacks.
   for (const client of ["TV_EMBEDDED", "WEB", "ANDROID"]) {
     try {
       console.log(`Connecting to public live chat with YouTube ${client} client...`);
-      // youtubei.js 15+ requires client selection inside an options object.
-      const candidate = await innertube.getBasicInfo(VIDEO_ID, { client });
+      const innertube = await Innertube.create({
+        client_type: client,
+        retrieve_player: false
+      });
+      const candidate = await innertube.getBasicInfo(VIDEO_ID);
       const candidateChat = candidate.getLiveChat();
-      if (!candidateChat) throw new Error("YouTube returned no live-chat continuation.");
+      if (!candidateChat) {
+        const liveState = candidate.basic_info?.is_live ? "live" : "not marked live";
+        throw new Error(`YouTube returned no live-chat continuation (video is ${liveState}).`);
+      }
       info = candidate;
       liveChat = candidateChat;
-      console.log(`Loaded video info and live-chat continuation using ${client}.`);
+      activeClient = client;
+      console.log(`Loaded video info and live-chat continuation using ${client} session.`);
       break;
     } catch (error) {
       lastError = error;
-      console.error(`YouTube ${client} client failed:`, error?.message || error);
+      console.error(`YouTube ${client} session failed:`, error?.message || error);
     }
   }
 
@@ -214,7 +222,7 @@ async function main() {
 
   liveChat.on("error", error => console.error("YouTube live chat polling error:", error?.message || error));
   await liveChat.start();
-  console.log(`PUBLIC CHAT READER CONNECTED: forwarding messages to ${ANALYTICS_URL}/api/ingest.`);
+  console.log(`PUBLIC CHAT READER CONNECTED with ${activeClient}: forwarding messages to ${ANALYTICS_URL}/api/ingest.`);
 
   // Replies are optional. Incoming chat remains active if OAuth is absent or invalid.
   void initializeYouTubeSender().catch(error => {
