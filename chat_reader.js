@@ -135,7 +135,7 @@ async function main() {
     throw new Error("No live chat is available for this video. Confirm the configured video is live and chat is enabled.");
   }
 
-  liveChat.applyFilter("LIVE_CHAT");
+  // Do not apply a filter before LiveChat.start() retrieves its initial info.
   liveChat.on("chat-update", action => {
     try {
       if (!action.is(YTNodes.AddChatItemAction)) return;
