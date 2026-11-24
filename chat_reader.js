@@ -67,7 +67,7 @@ async function main() {
   const innertube = await Innertube.create();
   // TV_EMBEDDED avoids the bot-check response seen on the default WEB client.
   // Basic info avoids the extra watch-next request made by getInfo().
-  const info = await innertube.getBasicInfo(VIDEO_ID, { client: "TV_EMBEDDED" });
+  const info = await innertube.getBasicInfo(VIDEO_ID, "TV_EMBEDDED");
   const ownerChannelId = info.basic_info?.channel_id || "";
   liveChat = info.getLiveChat();
 
