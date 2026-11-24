@@ -10,6 +10,7 @@ let liveChatId = null;
 let youtubeApi = null;
 let sendQueue = Promise.resolve();
 let lastSendAt = 0;
+let receivedMessages = 0;
 
 function parseJsonSecret(name) {
   const value = process.env[name];
@@ -21,11 +22,12 @@ function parseJsonSecret(name) {
   }
 }
 
+// Reply posting is optional. It must never prevent incoming chat from being read.
 async function initializeYouTubeSender() {
   const token = parseJsonSecret("YT_TOKEN_JSON");
   const client = parseJsonSecret("YT_CLIENT_SECRET_JSON");
   if (!token || !client) {
-    console.warn("YouTube reply sending is disabled: YT_TOKEN_JSON and/or YT_CLIENT_SECRET_JSON are not configured.");
+    console.warn("YouTube reply sending is disabled: OAuth secrets are not configured.");
     return;
   }
 
@@ -44,7 +46,7 @@ async function initializeYouTubeSender() {
   });
   liveChatId = broadcast.data.items?.[0]?.snippet?.liveChatId || null;
   if (!liveChatId) {
-    console.warn("No active liveChatId found for the configured YouTube video. Worker replies will be logged but not posted.");
+    console.warn("No liveChatId found for reply posting. Incoming chat reading remains active.");
   } else {
     console.log("YouTube chat reply sender is ready.");
   }
@@ -77,15 +79,24 @@ function avatarUrl(author) {
 }
 
 async function main() {
+  console.log(`Starting YouTube chat reader for video ${VIDEO_ID}.`);
+
   if (!process.env.ANALYTICS_INGEST_TOKEN) {
     throw new Error("Missing ANALYTICS_INGEST_TOKEN GitHub Actions secret.");
   }
 
-  await initializeYouTubeSender();
-
   const python = spawn(PYTHON, ["-u", "analytics.py"], {
     stdio: ["pipe", "pipe", "inherit"],
     env: { ...process.env, ANALYTICS_URL }
+  });
+
+  python.on("error", error => {
+    console.error("Could not start analytics.py:", error.message);
+    process.exitCode = 1;
+  });
+  python.stdin.on("error", error => {
+    console.error("Analytics bridge input error:", error.message);
+    process.exitCode = 1;
   });
 
   let output = "";
@@ -112,14 +123,17 @@ async function main() {
 
   python.on("exit", code => {
     console.error("analytics.py exited with code", code);
-    process.exitCode = code || 1;
+    if (code !== 0) process.exitCode = code || 1;
   });
 
+  console.log("Connecting to YouTube live chat...");
   const innertube = await Innertube.create();
   const info = await innertube.getInfo(VIDEO_ID);
   const ownerChannelId = info.basic_info?.channel_id || "";
   const liveChat = info.getLiveChat();
-  if (!liveChat) throw new Error("No live chat is available for this video. Confirm the stream is live and chat is enabled.");
+  if (!liveChat) {
+    throw new Error("No live chat is available for this video. Confirm the configured video is live and chat is enabled.");
+  }
 
   liveChat.applyFilter("LIVE_CHAT");
   liveChat.on("chat-update", action => {
@@ -130,6 +144,7 @@ async function main() {
 
       const author = item.author;
       const authorId = author?.id || "";
+      // Keep the existing owner-message exclusion; viewer messages are forwarded.
       if (!authorId || authorId === ownerChannelId) return;
 
       const message = item.message?.toString?.() || "";
@@ -142,15 +157,27 @@ async function main() {
         is_moderator: Boolean(author?.is_moderator || author?.is_owner),
         text: message
       };
-      python.stdin.write(JSON.stringify(event) + "\n");
+
+      if (!python.stdin.write(JSON.stringify(event) + "\n")) {
+        console.warn("Analytics bridge is backpressured; waiting for it to catch up.");
+      }
+      receivedMessages += 1;
+      if (receivedMessages === 1 || receivedMessages % 10 === 0) {
+        console.log(`Received ${receivedMessages} viewer chat message(s); forwarding to analytics bridge.`);
+      }
     } catch (error) {
       console.error("Chat event handling error:", error.message);
     }
   });
 
-  liveChat.on("error", error => console.error("YouTube live chat error:", error));
-  liveChat.start();
+  liveChat.on("error", error => console.error("YouTube live chat error:", error?.message || error));
+  await liveChat.start();
   console.log(`Reading live chat for video ${VIDEO_ID} and forwarding messages to ${ANALYTICS_URL}.`);
+
+  // Start optional OAuth reply support only after incoming chat is already running.
+  void initializeYouTubeSender().catch(error => {
+    console.error("YouTube reply sender unavailable (chat reading continues):", error.message);
+  });
 
   const shutdown = () => {
     try { liveChat.stop(); } catch {}
