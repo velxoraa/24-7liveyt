@@ -63,13 +63,30 @@ async function main() {
     if (code !== 0 && !stopping) console.error("Analytics forwarding has stopped; the video stream can continue.");
   });
 
-  console.log("Connecting to YouTube using the public TV_EMBEDDED client...");
   const innertube = await Innertube.create();
-  // TV_EMBEDDED avoids the bot-check response seen on the default WEB client.
-  // Basic info avoids the extra watch-next request made by getInfo().
-  const info = await innertube.getBasicInfo(VIDEO_ID, "TV_EMBEDDED");
+  // This livestream reports embeddable=false, so TV_EMBEDDED cannot open it.
+  // Try Android first; getBasicInfo avoids the watch-next request that previously
+  // triggered a 403 with getInfo(). Fall back to WEB if Android is blocked.
+  let info = null;
+  let lastError = null;
+  for (const client of ["ANDROID", "WEB"]) {
+    try {
+      console.log(`Connecting to YouTube public chat using the ${client} client...`);
+      const candidate = await innertube.getBasicInfo(VIDEO_ID, client);
+      const candidateChat = candidate.getLiveChat();
+      info = candidate;
+      liveChat = candidateChat;
+      console.log(`YouTube video info and live-chat continuation loaded with ${client}.`);
+      break;
+    } catch (error) {
+      lastError = error;
+      console.error(`YouTube ${client} client failed:`, error?.message || error);
+    }
+  }
+  if (!info || !liveChat) {
+    throw new Error(`Could not load public live chat with ANDROID or WEB: ${lastError?.message || "No live-chat continuation returned"}`);
+  }
   const ownerChannelId = info.basic_info?.channel_id || "";
-  liveChat = info.getLiveChat();
 
   liveChat.on("chat-update", action => {
     try {
