@@ -147,10 +147,9 @@ async function main() {
   let info = null;
   let lastError = null;
 
-  // Use the normal watch client first. Basic info avoids the extra /next request
-  // that caused earlier 403s. Android is a fallback; TV_EMBEDDED rejects this
-  // broadcast because YouTube reports that it is not embeddable.
-  for (const client of ["WEB", "TVHTML5", "ANDROID"]) {
+  // Try TV_EMBEDDED first because recent YouTube.js reports show WEB/ANDROID
+  // can be bot-blocked for live broadcasts. Keep WEB and ANDROID as fallbacks.
+  for (const client of ["TV_EMBEDDED", "WEB", "ANDROID"]) {
     try {
       console.log(`Connecting to public live chat with YouTube ${client} client...`);
       // youtubei.js 15+ requires client selection inside an options object.
@@ -168,7 +167,7 @@ async function main() {
   }
 
   if (!info || !liveChat) {
-    throw new Error(`Could not load public live chat using WEB, TVHTML5 or ANDROID: ${lastError?.message || "No live-chat continuation returned"}`);
+    throw new Error(`Could not load public live chat using TV_EMBEDDED, WEB or ANDROID: ${lastError?.message || "No live-chat continuation returned"}`);
   }
 
   const ownerChannelId = info.basic_info?.channel_id || "";
