@@ -152,10 +152,10 @@ async function main() {
       if (!message) return;
 
       // Handle background commands locally so they never depend on the Worker.
-      const bgMatch = message.trim().match(/^!bg\\s+(\\d+)$/i);
+      const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
       if (bgMatch) {
         const tempPath = BG_COMMAND_FILE + ".tmp";
-        void writeFile(tempPath, bgMatch[1] + "\\n", "utf8")
+        void writeFile(tempPath, bgMatch[1] + "\n", "utf8")
           .then(() => rename(tempPath, BG_COMMAND_FILE))
           .then(() => console.log(`Background change requested: !bg ${bgMatch[1]}`))
           .catch(error => console.error("Could not send background command to stream:", error.message));
