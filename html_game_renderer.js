@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { appendFile, readFile, rename } from "node:fs/promises";
 import { existsSync } from "node:fs";
 const WIDTH=854,HEIGHT=480,CAPTURE_WIDTH=1280,CAPTURE_HEIGHT=720,OUT=process.stdout;
-const OUTPUT_FPS=30, OVERLAY_FPS=5, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
+const OUTPUT_FPS=30, OVERLAY_FPS=3, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
 const QUEUE="word_messages.jsonl";
 const GAME_COMMAND="game_command.txt";
 let browser,page,queueBusy=false;
@@ -29,15 +29,17 @@ async function applyGameCommand(){
 }
 async function main(){
  browser=await chromium.launch({headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
- page=await browser.newPage({viewport:{width:CAPTURE_WIDTH,height:CAPTURE_HEIGHT},deviceScaleFactor:1});
+ page=await browser.newPage({viewport:{width:CAPTURE_WIDTH,height:CAPTURE_HEIGHT},deviceScaleFactor:0.75});
  await page.goto("file://"+process.cwd()+"/overlay/anagram-game.html");
  console.error("HTML ANAGRAM RENDERER READY");
  let nextCapture=Date.now();
  while(true){
   await consume();
   await applyGameCommand();
-  // Capture on a fixed 200ms cadence (5 overlay FPS). Repeat each image
-  // six times to feed the 30 FPS compositor without bursty frame batches.
+  // Capture on a fixed 333ms cadence (3 overlay FPS) at 75% device
+  // resolution. The CSS viewport stays 1280x720, preserving game layout and
+  // chat interaction while reducing browser raster and screenshot workload.
+  // Repeat each capture ten times to feed the 30 FPS compositor.
   const png=await page.screenshot({type:"png",omitBackground:true});
   const raw=await sharp(png).resize(WIDTH,HEIGHT).ensureAlpha().raw().toBuffer();
   for(let i=0;i<DUPLICATE_FRAMES;i++){
