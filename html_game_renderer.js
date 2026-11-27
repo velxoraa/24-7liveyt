@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 const WIDTH=854,HEIGHT=480,CAPTURE_WIDTH=1280,CAPTURE_HEIGHT=720,OUT=process.stdout;
 const OUTPUT_FPS=30, OVERLAY_FPS=5, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
 const QUEUE="word_messages.jsonl";
+const GAME_COMMAND="game_command.txt";
 let browser,page,queueBusy=false;
 async function consume(){
  if(queueBusy||!existsSync(QUEUE))return;queueBusy=true;
@@ -15,6 +16,17 @@ async function consume(){
   await import("node:fs/promises").then(m=>m.unlink(tmp).catch(()=>{}));
  }finally{queueBusy=false}
 }
+async function applyGameCommand(){
+ try{
+  if(!existsSync(GAME_COMMAND))return;
+  const command=(await readFile(GAME_COMMAND,"utf8")).trim().toLowerCase();
+  await import("node:fs/promises").then(m=>m.unlink(GAME_COMMAND).catch(()=>{}));
+  if(command==="off"||command==="anagram"){
+   const result=await page.evaluate(enabled=>window.setGameVisible(enabled),command==="anagram");
+   console.error("GAME_MODE "+(result?.enabled?"ANAGRAM":"OFF"));
+  }
+ }catch(err){console.error("Game command error",err.message)}
+}
 async function main(){
  browser=await chromium.launch({headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
  page=await browser.newPage({viewport:{width:CAPTURE_WIDTH,height:CAPTURE_HEIGHT},deviceScaleFactor:1});
@@ -23,6 +35,7 @@ async function main(){
  let nextCapture=Date.now();
  while(true){
   await consume();
+  await applyGameCommand();
   // Capture on a fixed 200ms cadence (5 overlay FPS). Repeat each image
   // six times to feed the 30 FPS compositor without bursty frame batches.
   const png=await page.screenshot({type:"png",omitBackground:true});
