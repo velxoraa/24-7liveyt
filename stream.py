@@ -87,9 +87,9 @@ def start_background_decoder(path: Path) -> subprocess.Popen:
         f"fps={FPS},format=rgb24"
     )
     if path.suffix.lower() in IMAGE_EXTS:
-        input_args = ["-loop", "1", "-framerate", str(FPS), "-re", "-i", str(path)]
+        input_args = ["-loop", "1", "-framerate", str(FPS), "-i", str(path)]
     elif path.suffix.lower() in VIDEO_EXTS:
-        input_args = ["-stream_loop", "-1", "-re", "-i", str(path)]
+        input_args = ["-stream_loop", "-1", "-i", str(path)]
     else:
         raise RuntimeError(f"Unsupported background format: {path.suffix}")
 
