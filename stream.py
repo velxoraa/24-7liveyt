@@ -144,11 +144,11 @@ def main() -> int:
         "-s", f"{WIDTH}x{HEIGHT}", "-r", str(FPS), "-i", "pipe:0",
         "-re", "-stream_loop", "-1", "-f", "concat", "-safe", "0", "-i", str(playlist),
         "-map", "0:v:0", "-map", "1:a:0",
-        "-c:v", "libx264", "-preset", "veryfast",
+        "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-bf", "0",
         "-b:v", "2500k", "-maxrate", "2500k", "-bufsize", "5000k",
         "-g", "60", "-r", str(FPS),
         "-c:a", "aac", "-b:a", "160k", "-ar", "44100",
-        "-flvflags", "no_duration_filesize",
+        "-flvflags", "no_duration_filesize", "-flush_packets", "1",
         "-f", "flv", destination,
     ]
 
