@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import os
-import random
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 from PIL import Image
@@ -22,7 +20,6 @@ BG_COMMAND_FILE = ROOT / "bg_command.txt"
 SONG_COMMAND_FILE = ROOT / "song_command.txt"
 YT_STREAM_KEY = os.environ.get("YT_STREAM_KEY", "").strip()
 RTMP_URL = os.environ.get("YOUTUBE_RTMP_URL", "rtmp://a.rtmp.youtube.com/live2").rstrip("/")
-REPEATS = max(20, int(os.environ.get("PLAYLIST_ROUNDS", "250")))
 WIDTH, HEIGHT, FPS = 854, 480, 30
 FRAME_BYTES = WIDTH * HEIGHT * 3
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".avi"}
@@ -32,30 +29,6 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 def ffconcat_quote(path: Path) -> str:
     return str(path.resolve()).replace("'", "'\\''")
 
-
-def build_playlist() -> Path:
-    songs = sorted(
-        p for p in SONGS_DIR.iterdir()
-        if p.is_file() and p.suffix.lower() in {".mp3", ".mpeg", ".mp2"}
-    )
-    if not songs:
-        raise RuntimeError(f"No MP3 audio files found in {SONGS_DIR}")
-
-    playlist: list[Path] = []
-    previous: Path | None = None
-    for _ in range(REPEATS):
-        batch = songs[:]
-        random.shuffle(batch)
-        if previous is not None and len(batch) > 1 and batch[0] == previous:
-            batch[0], batch[1] = batch[1], batch[0]
-        playlist.extend(batch)
-        previous = batch[-1]
-
-    fd, filename = tempfile.mkstemp(prefix="kaxmok-playlist-", suffix=".txt")
-    with os.fdopen(fd, "w", encoding="utf-8") as file:
-        for song in playlist:
-            file.write(f"file '{ffconcat_quote(song)}'\n")
-    return Path(filename)
 
 
 def list_songs() -> list[Path]:
@@ -166,7 +139,6 @@ def main() -> int:
     else:
         print(f"Starting with background: {current.name}", flush=True)
 
-    playlist = build_playlist()
     songs = list_songs()
     song_index = 0
     destination = f"{RTMP_URL}/{YT_STREAM_KEY}"
@@ -191,7 +163,7 @@ def main() -> int:
     game_renderer = None
     try:
         game_renderer = subprocess.Popen(["node", "html_game_renderer.js"], stdout=subprocess.PIPE, stderr=None, bufsize=0)
-        print(f"Loaded {len(list(SONGS_DIR.glob('*')))} directory entries; playlist has {REPEATS} shuffled rounds.", flush=True)
+        print(f"Loaded {len(songs)} songs; audio can be changed without restarting the stream encoder.", flush=True)
         print("Starting FFmpeg livestream; audio encoder stays running during background changes.", flush=True)
         audio_read_fd, audio_write_fd = os.pipe()
         encoder_command[encoder_command.index("pipe:3")] = f"pipe:{audio_read_fd}"
@@ -288,7 +260,6 @@ def main() -> int:
                 os.close(audio_read_fd)
             except OSError:
                 pass
-        playlist.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
