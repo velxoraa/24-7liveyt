@@ -22,7 +22,7 @@ BG_COMMAND_FILE = ROOT / "bg_command.txt"
 YT_STREAM_KEY = os.environ.get("YT_STREAM_KEY", "").strip()
 RTMP_URL = os.environ.get("YOUTUBE_RTMP_URL", "rtmp://a.rtmp.youtube.com/live2").rstrip("/")
 REPEATS = max(20, int(os.environ.get("PLAYLIST_ROUNDS", "250")))
-WIDTH, HEIGHT, FPS = 1280, 720, 30
+WIDTH, HEIGHT, FPS = 854, 480, 30
 FRAME_BYTES = WIDTH * HEIGHT * 3
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".avi"}
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -145,9 +145,9 @@ def main() -> int:
         "-re", "-stream_loop", "-1", "-f", "concat", "-safe", "0", "-i", str(playlist),
         "-map", "0:v:0", "-map", "1:a:0",
         "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-bf", "0",
-        "-b:v", "2500k", "-maxrate", "2500k", "-bufsize", "5000k",
+        "-b:v", "1500k", "-maxrate", "1500k", "-bufsize", "3000k",
         "-g", "60", "-r", str(FPS),
-        "-c:a", "aac", "-b:a", "160k", "-ar", "44100",
+        "-c:a", "aac", "-b:a", "96k", "-ar", "44100",
         "-flvflags", "no_duration_filesize", "-flush_packets", "1",
         "-f", "flv", destination,
     ]
