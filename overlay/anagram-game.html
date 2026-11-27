@@ -1,197 +1,981 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=1280,height=720,initial-scale=1"><title>KAXMOK Words On Stream</title>
-<style>
-*{box-sizing:border-box}html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:transparent;font-family:Arial,Helvetica,sans-serif;color:#fff}
-#cabinet{position:absolute;inset:25px 28px;border:5px solid #dca7ff;border-radius:30px;background:linear-gradient(145deg,rgba(112,48,194,.96),rgba(75,20,139,.96));box-shadow:0 0 0 5px rgba(86,20,147,.8),inset 0 0 0 2px #f2caff,0 12px 35px #17002e}
-#header{height:126px;display:flex;align-items:center;justify-content:space-between;padding:16px 28px}
-.logo{font-size:38px;font-weight:1000;line-height:.86;text-shadow:3px 4px #35105e;letter-spacing:-2px}.logo small{display:block;color:#26fff0;font-size:18px;letter-spacing:2px;margin:8px 0 0 5px}
-.headline{position:absolute;left:385px;top:45px;width:500px;text-align:center;border:3px solid #dbaaff;border-radius:20px;background:#35105e;padding:14px 8px;font-weight:1000;font-size:28px;letter-spacing:1px;text-shadow:0 2px #9d66d1}
-.hud{margin-left:auto;border:3px solid #dca7ff;background:#35105e;border-radius:18px;padding:12px 22px;text-align:center;font-weight:900;min-width:225px}.hud b{color:#19f5e5;font-size:30px}.hud span{color:#ffd65b;margin-left:18px}
-#rack{position:absolute;top:157px;left:190px;width:872px;height:116px;border-radius:25px;background:#c99aff;border:4px solid #f5dfff;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 5px #51178a}
-.tile{width:94px;height:94px;border:4px solid #4a187c;border-radius:14px;background:linear-gradient(#fff4ff,#e8cfff);color:#35105e;display:grid;place-items:center;font-size:58px;font-weight:1000;box-shadow:inset 0 0 0 3px #b77de5;text-shadow:0 1px #fff}
-#timerwrap{position:absolute;left:175px;top:291px;width:930px;height:18px;border-radius:15px;background:#32105b;border:2px solid #dbaaff;overflow:hidden}#bar{height:100%;width:100%;background:linear-gradient(90deg,#17ffe8,#06c6dd);box-shadow:0 0 12px #00fff0}
-#roundline{position:absolute;top:317px;left:175px;font-size:15px;font-weight:900;letter-spacing:1px;color:#f5e8ff}
-#columns{position:absolute;left:35px;right:35px;top:360px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
-.group{height:125px;border-radius:13px;background:rgba(67,12,126,.7);border:2px solid rgba(210,155,255,.65);padding:9px 12px;overflow:hidden}
-.group h3{font-size:13px;letter-spacing:1.4px;color:#e8caff;margin:0 0 8px}
-.words{display:flex;flex-wrap:wrap;gap:6px}.word{background:#280b4c;border:1px solid #b57be9;border-radius:7px;padding:4px 8px;font-size:16px;font-weight:900;color:#22f9e8}.empty{display:inline-block;width:30px;height:25px;border-radius:5px;background:#280b4c;border:2px solid #a66ad7;margin-right:4px}
-#leader{position:absolute;right:44px;bottom:28px;width:355px;height:154px;background:#2c0b55;border:3px solid #d9a4ff;border-radius:16px;padding:12px 16px}
-#leader h2{margin:0 0 8px;font-size:18px;color:#ffd65b;letter-spacing:1px}.player{display:flex;justify-content:space-between;padding:4px 2px;font-size:15px;font-weight:900}.player strong{color:#20f7e5}
-#notice{position:absolute;left:48px;bottom:40px;min-width:520px;max-width:690px;padding:12px 18px;background:#26084c;border:2px solid #1ef5e5;border-radius:12px;font-size:19px;font-weight:1000;color:#21fff0;opacity:0;transition:opacity .15s}
-#notice.show{opacity:1}#help{position:absolute;left:50px;bottom:18px;font-size:13px;letter-spacing:1px;font-weight:900;color:#f4e4ff}
-</style></head><body>
-<div id="cabinet"><div id="header"><div class="logo">WORDS<small>ON STREAM · KAXMOK</small></div><div class="hud">GOAL <b id="goal">0/60</b><span id="level">LEVEL 1</span></div></div>
-<div class="headline">BE THE FIRST TO FIND<br>AN ANAGRAM!</div><div id="rack"></div>
-<div id="timerwrap"><div id="bar"></div></div><div id="roundline"></div>
-<div id="columns"></div><div id="leader"><h2>TOP WORD HUNTERS</h2><div id="players"></div></div>
-<div id="notice"></div><div id="help">TYPE YOUR WORD DIRECTLY IN YOUTUBE CHAT · NO COMMAND NEEDED</div></div>
-<script>
-const BANK=[
-["PLANETS","PLANET PLANTS STAPLE PLATE PLANE PANEL PETAL SLANT SLATE STEAL STALE LEAST TALES TAPES PASTE LEAPS PEALS PALES SEPAL PANTS PLANS PATES SEAT EAST EATS TEAS TAPE PAST LATE TALE PLAN PANT LENT SENT NEST NEAT EARN NEAR ANTS SNAP SPAT STEP PEAS SALE SEAL"],
-["ORANGES","ORANGE RANGES ANGER RANGE GROAN ORGAN SNORE AROSE GEARS GOERS SOAR ROSE EARS ERAS SAGE RAGE GEAR EARN NEAR ONES NOSE SORE SONG GONE GOES AGES EONS RANG GORE EGO ORE RAN NOR AGE"],
-["TEACHER","TEACHER CHEATER HECTARE TEACH CHEAT REACH HEART EARTH THERE THREE CHEER TRACE REACT CATER CRATE CARET RACE CARE EACH HEAR HERE TREE RATE TEAR ACHE CHAT HEAT HATE EAT TEA THE HER ART CAR CAT"],
-["PAINTER","PAINTER REPAINT PERTAIN PAINT TRAIN RETAIN RETINA PARENT PIRATE INERT INTER TAPER PRATE RIPEN TIRE TIER RIPE PINE PANE PAIR PAIN RAIN RANT RATE TEAR NEAR EARN TAPE PART TRAP TARP PANT PINT PATE TAN RAN TAR RAT"],
-["MONSTER","MONSTER MENTORS SERMON MENTOR TENORS TONERS TENOR STONE STORE TONES NOTES ONSET TERMS METRO MORE MOST NEST SENT TORN ROSE SOME SORT TONE NOTE REST STEM TERM ONES NORM MORN NOSE TORE ORES ROTS SORE NETS METS MEN ONE TEN"],
-["CAUTION","CAUTION AUCTION ACTION NATION TONIC COUNT CANTO TUNIC COAT AUNT UNIT TUNA CANT ICON INTO ANTI UNTO COIN CUT CAT CAN ACT NOT TON NUT OUT OAT TAN TIN ION CON ANT"],
-["FOLDERS","FOLDERS FOLDER OLDER LOSER ROLES FOLDS DOERS REDOS FOLD ROLE ROSE DOES DOER SOLD LORD ORES RODS DOSE LORE RODE REDO FORD FOES LODE SLED SELF FLED FLOE SOLE SORE OLD LED RED ORE"],
-["STATION","STATION NATION STAIN SATIN TOAST TITAN TAINT STINT SAINT TINTS ANTS INTO IONS TANS TOTS STAT TINS SNOT SITS SNIT TINT SIT SAT TAN TIN ION NOT ANT OAT ITS SON TON SIN"],
-["STREAMS","STREAMS MASTER STREAM TAMERS ARMETS SMART STEAM TEAMS MEATS MATES TERMS TAMES STARE TEARS RATES TARES ASTER SMear MARES RAMS STAR MAST SAME SEAM TEAM MEAT MATE EARS EATS SEAT EAST"],
-["CREDIT","DIRECT CITED TRICE TRIED TIRED CRIED RICED CIDER CREDO DICE RICE RIDE TIDE TIER TIRE RITE EDIT DIET DIRT DIRE REND RIND RICE RED TIE DIE ICE RID"],
-["GARDENS","DANGER GARDEN RANGED GANDER DARNED RANGED RANGES ANGER GRADE GRADE RAGED DEARS DAres READS SNARED SANDER GRADE DARE DEAR READ EARN NEAR SAND SEND RANG DARN GEAR AGED"],
-["SILENCE","SILENCE LICENSE ENLICE NICELS SCENIC SILEN NIECE SLICE SINCE LINES LIENS CLIES ISLE LICE NICE LINE LENS LIES SINE SEEN ELSE"],
-["TRIANGLE","ALTERING ALERTING INTEGRAL RELATING TAILERING REALIGN INERTIA RETINAL LINEAR TINGLE ANGLE GIANT GRAIN TRAIN TRIAL LATER ALERT ALTER LARGE RANGE REGAL GLEAN LEARN RENAL"],
-["CREATION","REACTION CREATION ANORETIC NOTARICE CERTAIN REACTION CORNET CATION ACTION ATONER ORIENT CATER CRATE TRACE REACT RECOIL? TRAIN RATIO IRATE OCEAN CRANE ACORN CANOE"],
-["NOTEBOOK","NOTEBOOK BOOKNOTE TOKEN BENTO TOKEN BETOOK BONK NOTE TONE TONE BOOK BOOT KNOT BONE BOON BOOT NOOK TOOK ONE NOT TOO TOE TON"],
-["CHARGED","CHARGED CHARGE CHARED CHARD CHARD CHARE GRACE REACH CHAIR CHARD HEARD HARD CARE RACE EACH ARCH CARD ACHE RAGE READ DEAR GEAR"],
-["DUSTIER","DUSTIER STUDIER SUITED DUET SITED TIRED TRIED RUSTED STRIDE STUDY? SUITE SUITED DUST RIDE SIDE TIDE TIRE TIER SUIT USER USED TRUE RISE"],
-["READING","READING DANGER RANGED GAINED GRAIN RANGE GRADE GRAND RING GAIN GEAR DEAR READ DARE DING DINE RAIN NEAR EARN AGED"],
-["CAMPERS","CAMPERS CAMPERS SCAMPER CAMPER SCREAM RECAMP CRAMPS CRAMP CAMPS CRAPE PACES SPEAR SPARE PEARS PARSE RECAP SPACE CREAM ACRES CAPER SCRAP"],
-["PASTURE","PASTURE UPSTARE PASTEUR PUREST PAUSER PATURE? PASTE STARE TEARS RATES TAPER PRATE PARSE SPARE SPEAR SUPER SURE TRUE USER"],
-["DREAMING","DREAMING MARGined DREAMING REMAIN GARDEN DANGER GAINED GRAIN RAISED GERMAN DANGER RINGED DINER RANGE GRADE DREAM GRAIN MARGIN"],
-["SALTIER","SALTIER REALIST RETAILS TAILERS SALTER STALER RETAIL SERIAL ALTER RAISE ARISE STAIR TRAIL TRIAL STALE STEAL LEAST TAIL TIRE TIER RATE TEAR"],
-["PASTELS","PASTELS STAPLES PLATES PETALS STAPLE PASTEL PLATE PETAL PLEAT LEAPS PALES PEALS SEPAL LEAST STEAL STALE SLATE TALES PASTE Tapes"],
-["CINEMAS","CINEMAS CINEMA SEMINA ANEMIC CANES ACNES AMINE MINES NAMES MEANS MICES? MEAN NAME MINE MICE CASE ACNE SAME SEAM MANS"],
-["DOLPHIN","DOLPHIN PHONID? PHONIC HOLD PINHO? PHONE POND HIND LION LOIN PLOD POND DOIN? HOP PIN DIP OLD LID"],
-["RAINBOW","RAINBOW BRAIN BROWN ROBIN BARON BORN WARN WORN RAIN RAIN BARN BOAR BROW WARB? RAN WAR ROW NOW AIR BAN BIN ROB WIN"],
-["KITCHEN","KITCHEN THICKEN KENCHIT THIN KITE HINT HICK TICK THEN THEY? KIN KIT TEN HEN HIT ICE TIN THE"],
-["PICTURE","PICTURE PICTURE RECUT? PRICE TRICE CURE CUTE PURE RICE RITE TIRE TIER PIER PERT RICE CITE"],
-["DYNAMIC","DYNAMIC CYANIC CANDY ACID MANY MIND DICE DAMN MAIN MIDI DYNAM? CAN AND ANY DAY MAY DIM DAM"],
-["HOLIDAY","HOLIDAY HOLY DAILY DIALY? DOILY IDOL LOAD LAID LADY HOLD OLD OIL LAY DAY HAD LAD"],
-["COUNTER","COUNTER RECOUNT CORNET TRUCE COUNT ROUTE OUTER TENOR TONER TUNER CURE CUTE TONE NOTE RENT TURN TORN TRUE"],
-["BARGAIN","BARGAIN AIRBAG GRAIN BRAIN RABID RING GAIN RAIN BANG BRAG BARN RANG GARB RAG BAG BIN AIR RAN"],
-["WHISPER","WHISPER WHIPERS WIPERS WISPER SWIPER WIRES WIRES WHIR PIES WIRE WISE WISH RISE HIRE WIRE SIP HER"],
-["DIALOGS","DIALOGS DIALOG GOAL IDOL LOAD GOLD GOAD SAIL ALSO SOIL SAID DIAL LAID LAGO GLAD DOG LOG LAD OIL"],
-["FANTASY","FANTASY FANTAS? FAST ANY STAY FANS FAST TANS NAYS SANT? FAY TAN SAY ANT FAN SAT"],
-["JOURNEY","JOURNEY JOURNEY ENJOY JERNY? JOU? JURY YOUR JUNE JOEY RUNE EURO JERK? ONE OUR YOU RUN"],
-["MYSTERY","MYSTERY MYSTERY SYSTEM MYST? TERMS RESTY METER STYLE STEER TREYS REST TERM MERE YES TRY"],
-["KARAOKE","KARAOKE KARAOKE KOREA OAKER AROKE KOREA ROAR ORE ARE ERA OAK EAR RARE ROE"],
-["VIOLETS","VIOLETS VIOLET OLIVES VOILE STOLE TOILS TOILE EVILS LIVES VILES VOTE LOVE LIVE VILE SOIL SITE TIES"],
-["DANCERS","DANCERS CANDERS SCANDER DANCED CANDES DANCES DANCE SCARE ACRES RACES SNARE SANDER DARN CANE CARE CASE SCAN"],
-["FIREMAN","FIREMAN MARINE REMAIN INFRA? MINER FRAME FIRMAN FAMINE? FINE FIRE FIRM MINE MEAN NAME NEAR EARN RAIN FAIR FARM"]
-,
-["LISTEN","LISTEN SILENT ENLIST TINSEL INLETS INSET LINES TILES LENT LINE LIES SINE SENT NEST"],
-["RESCUE","RESCUE SECURE RECUSE CURES CURSE REUSE USER SURE CURE RUSE RUES"],
-["EARTHS","HEARTS EARTHS HATERS SHARES SHEARS HEART EARTH HATER SHARE SHEAR HEARS STARE TEARS RATES"],
-["SPIRAL","SPIRAL APRIL PAIRS LAIRS RAILS LIARS PAILS LAPS SLAP PAIR AIRS RAIL SAIL"],
-["RESIST","RESIST SISTER RITES TRIES TIERS TIRES RESTS RISES SIRE SITS SITE TIRE TIER"],
-["SECURE","SECURE RESCUE RECUSE CURSE CURES REUSE USER SURE CURE RUSE"],
-["RANDOM","RANDOM ADORN RADON MANOR ROMAN MOAN ROAM ROAD DARN RAM RAN"],
-["POETRY","POETRY TROPE POET PORE ROPE ROTE TORE TYPE TYRE YORE TOY TOP"],
-["FATHER","FATHER HEARTH AFTER HEART EARTH HATER FARE FEAR HEAR HARE RATE TEAR"],
-["FRIENDS","FRIENDS FRIEND FINDER DINERS RINSED SNIDER FIENDS FIEND FINER FINES"],
-["OPTIONS","OPTIONS PISTON POINTS PINOTS PITONS POSIT POINT PINTS PINT POST STOP TOPS"],
-["GLANCED","GLANCED CANDLE GLANCE ANGLED ANGEL GLEAN ANGLE CLEAN DANCE LANCE DEAL LEAD"],
-["CRANES","CRANES CANERS NACRES SCARE RACES CANES ACRES CRANE CARES SNARE ACNE CASE"],
-["STUDY","STUDY DUSTY DUTY STUD DUST STY"],
-["THING","THING NIGHT THIN HINT NIGH HIT TIN"],
-["STREAM","STREAM MASTER TAMERS SMART STEAM TEAMS MEATS MATES TERMS TAMES STARE TEARS RATES TARES"],
-["SHOUT","SHOUT SOUTH THOUS SHOT SHUT OUTS HOST THOU HOTS"],
-["PASTOR","PASTOR PARTS TRAPS STRAP SPRAT TARPS SPORT PORTS PART TRAP TARP STAR STOP"],
-["SLATED","SLATED SALTED LASTED DESALT DELTAS STALE STEAL LEAST SLATE DEALS LEADS TALES"],
-["FRESCO","FRESCO FORCES SCORES FORCE SCORE CORES CORE ROSE SORE ORES"],
-["LISTED","LISTED IDLEST TILDE SLIDE SIDLE STILE TILES SITED DIETS EDITS TIED TIDE"],
-["RESORT","RESORT SORTER RETROS ROSTER STORE SORT ROSE REST TORE ORES ROTS"],
-["CARETS","CARETS CATERS REACTS TRACES CRATES CASTER RECAST CATER CRATE TRACE REACT"],
-["SEATING","SEATING TEASING EATING NEGATE STAGE STAIN SAINT GATES GIANT GAIN SEAT EAST"],
-["THREAD","THREAD HATRED DEARTH HATER HEART EARTH HARD HEAR READ DEAR RATE"],
-["REPAIRS","REPAIRS PRAISE ASPIRE SPIREA PAIRS PEARS RAISE ARISE SPEAR SPARE PARSE"],
-["SCALER","SCALER CLEARS CLEAR SCALE SCARE RACES CARES ACRES LACES"],
-["MARBLE","MARBLE AMBER BLAME REALM BALER BREAM LAMER MALE BEAR BARE REAL"],
-["ORIENT","ORIENT TONIER INTRO INERT INTER TENOR TONER TONE NOTE TIRE TIER RITE"],
-["SECANT","SECANT STANCE CANES SCAN CENT CATS EAST SEAT TENS SENT"],
-["PLUNDER","PLUNDER UNDER RULED PRUNE LEND LURE PURE DUNE"],
-["GUITARS","GUITARS GAITS STAIR STRIA SUGAR SITAR GAIT STAR RUST"],
-["SILVER","SILVER LIVERS LIVRES RIVELS RIVES LIVER LIVES VILER RILES"],
-["CASTLE","CASTLE CLEATS SCALE STALE STEAL SLATE LEAST TALES LACES"],
-["DANGER","DANGER GARDEN RANGED GANDER ANGER RANGE GRADE RAGED DEAR READ DARE EARN NEAR"],
-["BRAINY","BRAINY BRAIN RAINY BARN RAIN AIRY BRAY BARNY"],
-["CLOSER","CLOSER SCORE CORES ROLES ROSE SORE CORE LORE ROLE"],
-["TRAVEL","TRAVEL LATER ALERT ALTER RAVEL REAL RATE TEAR TALE"],
-["GLOWER","GLOWER GROWL LOWER GLOW GORE ROLE GROW"],
-["MOTHER","MOTHER THERMO OTHER THROE HOMER HOME MORE MOTE THEM TOME"],
-["PLANER","PLANER PLANE PANEL PEARL LEARN RENAL NEAR EARN PLAN PANE PALE PEAL"],
-["SINGER","SINGER REIGNS RESIGN SIGNER SIREN RINGS REINS SIGN SING RING"],
-["BOTTLE","BOTTLE BLOT BOLT LOBE BELT TOTE LOT TOE"],
-["GAMERS","GAMERS GAMES GEARS RAGES MARES GEAR GAME SAME SEAM"],
-["FINDER","FINDER FRIEND FIEND FINER FIRED RIDE DINE FINE FIRE"],
-["SQUARE","SQUARE SCARE ACRES RACES CARES USER SURE EARS"],
-["CANDLE","CANDLE LANCED DANCED CLEAN LANCE DANCE DEAL LEAD LEND LAND"],
-["BRIGHT","BRIGHT BIRTH RIGHT GIRTH GRIT RIG"],
-["SCARED","SCARED SACRED CADRES CEDARS CARED RACES SCARE ACRES CARES READ DEAR"],
-["TROPIC","TROPIC TOPIC CROP TRIP RIOT PORT"],
-["BLAZER","BLAZER BLARE BLEAR BLAZE BRAZE BARE BEAR REAL ZEAL"],
-["MINGLE","MINGLE LIMEN MINE LINE LIME MILE"],
-["THRONE","THRONE HORNET OTHER THORN TENOR TONER NORTH HORN TONE NOTE"],
-["CARTON","CARTON CANTOR CONTRA ACTOR CART RANT TORN TACO COAT CORN"],
-["SPREAD","SPARED DRAPES PARSED SPEAR SPARE PEARS PARSE READ DEAR"],
-["TANGLE","TANGLE ANGLE ANGEL GLEAN LATE TALE TEAL TANG"],
-["SPOKEN","SPOKEN POKES SPOKE OPENS PEONS NOSE ONES OPEN POKE"],
-["WANDER","WANDER WARNED WARDEN DARN WEAR WARE DEAR READ"],
-["GRAINS","GRAINS GAIN RANG RAIN RING SIGN SING AIRS RAGS"],
-["BORDER","BORDER ROBED BORED ORDER RODE DOER REDO BORE ROBE ORE"],
-["POWDER","POWDER DOWER POWER PROW RODE DOER WORD WORE"],
-["FAMOUS","FAMOUS FOAMS FOAM FUSE SUMO SOAP SOFA"],
-["CAMPUS","CAMPUS SCAMP CAMPS CUPS CAPS MAPS SUM CAP CAMP"],
-["RIBBON","RIBBON ROBIN BORN IRON ROB RIB BIN NOR"],
-["COSTUME","COSTUME CUSTOM COMETS COMES MOUSE MUTES CUTS COST COME SOME"],
-["MANTLES","MANTLES LAMENTS MENTALS MANTEL STAMEN MEANT MEANS METAL"],
-["READERS","READERS DEARER ERASER EARS READ DEAR DARE SEAR"],
-["HARMONY","HARMONY ROMANY HARM MANY HARM RAY HAY NAY"],
-["JUNGLE","JUNGLE LUNGE JUNE LUNG GLEN JUG"],
-["MACHINE","MACHINE CINEMA CHAIN CHIME CHINA ACME MINE NAME"],
-["FROZEN","FROZEN FROZE ZONE ZERO FERN FORE ORE ONE"],
-["STORING","STORING STING TONGS RINGS GRINS RING SING"],
-["CLEANER","CLEANER ENLACER CLEAR CLEAN LANCE LEARN RENAL NEAR EARN"],
-["MATERIAL","MATERIAL MARITAL RETAIL TAILER"],
-["SILENCE","SILENCE LICENSE SCENIC SLICE SINCE LINES LIENS NIECE NICE LINE LENS"],
-["DYNAMIC","DYNAMIC CYANIC CANDY ACID MANY MIND DICE DAMN MAIN MIDI"],
-["HOLIDAY","HOLIDAY DOILY IDOL LOAD LAID LADY HOLD HOLY DAILY DIAL"],
-["COUNTER","COUNTER RECOUNT CORNET TRUCE COUNT ROUTE OUTER TENOR TONER TUNER"],
-["BARGAIN","BARGAIN AIRBAG GRAIN BRAIN RABID RING GAIN RAIN BANG BRAG BARN"],
-["WHISPER","WHISPER WIPERS WIRES WHIR PIES WIRE WISE WISH RISE HIRE"],
-["DIALOGS","DIALOGS DIALOG GOAL IDOL LOAD GOLD GOAD SAIL ALSO SOIL SAID DIAL"],
-["JOURNEY","JOURNEY ENJOY JURY YOUR JUNE JOEY RUNE EURO ONE OUR YOU RUN"],
-["MYSTERY","MYSTERY SYSTEM TERMS METER STYLE STEER REST TERM MERE YES TRY"],
-["VIOLETS","VIOLETS VIOLET OLIVES VOILE STOLE TOILS EVILS LIVES VOTE LOVE LIVE"],
-["DANCERS","DANCERS DANCES DANCE SCARE ACRES RACES SNARE SANDER DARN CANE CARE"],
-["FIREMAN","FIREMAN MARINE REMAIN MINER FRAME FINE FIRE FIRM MINE MEAN NAME NEAR"]
-];
-let puzzleIndex=0,round=1,seconds=55,found=[],scores={},totalFound=0,level=1,noticeTimer=null;
-const $=id=>document.getElementById(id);
-const clean=s=>s.toUpperCase().replace(/[^A-Z]/g,"");
-function validWords(entry){
- const available=[...entry[0]].reduce((m,c)=>(m[c]=(m[c]||0)+1,m),{});
- return [...new Set(entry[1].split(/\\s+/).map(clean).filter(w=>{
-  if(w.length<3||w.length>8)return false;
-  const used={};for(const c of w){used[c]=(used[c]||0)+1;if(used[c]>(available[c]||0))return false;}
-  return true;
- }))];
-}
-function current(){return BANK[puzzleIndex%BANK.length]}
-function shuffle(s,seed){let a=[...s];for(let i=a.length-1;i>0;i--){let j=(seed*31+i*17)% (i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
-function notify(t){$("notice").textContent=t;$("notice").classList.add("show");clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$("notice").classList.remove("show"),3200)}
-function render(){
- const [letters]=current();$("rack").innerHTML=shuffle(letters,round).map(ch=>'<div class="tile">'+ch+'</div>').join("");
- $("goal").textContent=totalFound+"/60";$("level").textContent="LEVEL "+level;
- $("roundline").textContent="ROUND "+round+"   ·   "+String(seconds).padStart(2,"0")+"s LEFT   ·   "+found.length+" WORDS FOUND";
- $("bar").style.width=(seconds/55*100)+"%";
- const groups=[8,7,6,5,4,3].map(n=>({n,words:found.filter(w=>w.length===n)}));
- $("columns").innerHTML=groups.map(g=>'<div class="group"><h3>'+g.n+' LETTER WORDS · '+g.words.length+'</h3><div class="words">'+(g.words.length?g.words.slice(-8).map(w=>'<span class="word">'+w+'</span>').join(""):'<span class="empty"></span><span class="empty"></span><span class="empty"></span>')+'</div></div>').join("");
- $("players").innerHTML=Object.entries(scores).sort((a,b)=>b[1].points-a[1].points).slice(0,5).map(([id,p],i)=>'<div class="player"><span>'+(i+1)+'. '+esc(p.name)+'</span><strong>'+p.points+'</strong></div>').join("")||'<div class="player">BE THE FIRST WORD HUNTER!</div>';
-}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-window.submitChatWord=(id,name,raw)=>{
- const word=clean(raw);if(!/^[A-Z]{3,8}$/.test(word))return {ok:false,reason:"invalid"};
- const [letters,rawAnswers]=current();const answers=validWords(current());
- if(!answers.includes(word))return {ok:false,reason:"invalid"};
- if(found.includes(word))return {ok:false,reason:"duplicate"};
- found.push(word);totalFound++;const pts=word.length*10+(word.length===letters.length?50:0);
- if(!scores[id])scores[id]={name:String(name).slice(0,18),points:0};scores[id].points+=pts;
- notify(String(name).toUpperCase()+" FOUND "+word+"  +"+pts+" PTS");render();
- if(totalFound>=60){notify("60 WORD GOAL CLEARED! LEVEL UP!");totalFound=0;level++;}
- return {ok:true,points:pts,word};
-};
-function nextRound(){round++;puzzleIndex++;seconds=55;found=[];seen.clear();render()}
-setInterval(()=>{seconds--;if(seconds<=0)nextRound();else render()},1000);
-render();
-</script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1280, height=720, initial-scale=1">
+  <title>KAXMOK Words On Stream</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=JetBrains+Mono:wght@600;700;800&family=Outfit:wght@700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cabinet-bg: linear-gradient(155deg, rgba(18, 9, 36, 0.95) 0%, rgba(30, 13, 60, 0.95) 52%, rgba(20, 8, 42, 0.96) 100%);
+      --panel-bg: rgba(13, 6, 28, 0.72);
+      --panel-border: rgba(218, 178, 255, 0.22);
+      --gold-light: #ffe78a;
+      --gold-mid: #f5b938;
+      --gold-dark: #b67b14;
+      --cyan-glow: #18f7e8;
+      --cyan-deep: #06b6d4;
+      --violet-rim: rgba(196, 132, 252, 0.48);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 1280px;
+      height: 720px;
+      overflow: hidden;
+      background: transparent;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Main Broadcast Cabinet */
+    #cabinet {
+      position: absolute;
+      inset: 22px 26px;
+      border-radius: 30px;
+      background: var(--cabinet-bg);
+      border: 2px solid rgba(235, 198, 255, 0.45);
+      box-shadow:
+        0 0 0 1px rgba(245, 185, 56, 0.28),
+        0 0 0 5px rgba(14, 6, 30, 0.75),
+        inset 0 1px 1px rgba(255, 255, 255, 0.25),
+        inset 0 -18px 40px rgba(7, 2, 18, 0.65),
+        0 18px 42px rgba(6, 1, 16, 0.82);
+      overflow: hidden;
+    }
+
+    /* Ambient Studio Mesh & Subtle Sheen */
+    #cabinet::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 16% 12%, rgba(168, 85, 247, 0.24), transparent 42%),
+        radial-gradient(circle at 84% 14%, rgba(24, 247, 232, 0.14), transparent 38%),
+        radial-gradient(circle at 50% 95%, rgba(245, 185, 56, 0.10), transparent 45%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Top Rim Accent Line */
+    #cabinet::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 140px;
+      right: 140px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(24, 247, 232, 0.85), rgba(255, 231, 138, 0.9), rgba(24, 247, 232, 0.85), transparent);
+      box-shadow: 0 0 14px rgba(24, 247, 232, 0.6);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Header Section */
+    #header {
+      position: relative;
+      z-index: 2;
+      height: 118px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+    }
+
+    /* Brand Logo Lockup */
+    .logo-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .logo {
+      font-family: 'Outfit', sans-serif;
+      font-size: 42px;
+      font-weight: 900;
+      line-height: 0.88;
+      letter-spacing: -1.5px;
+      background: linear-gradient(180deg, #ffffff 15%, #e5cbff 95%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 3px 0 #260b47) drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
+    }
+
+    .logo-sub {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 2.2px;
+      color: var(--cyan-glow);
+      text-shadow: 0 0 10px rgba(24, 247, 232, 0.45);
+      padding-left: 2px;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan-glow);
+      box-shadow: 0 0 8px var(--cyan-glow);
+      animation: pulseDot 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.8); }
+    }
+
+    /* Center Broadcast Prompt Banner */
+    .headline {
+      position: absolute;
+      left: 50%;
+      top: 19px;
+      transform: translateX(-50%);
+      width: 490px;
+      padding: 12px 20px;
+      text-align: center;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(44, 19, 86, 0.92), rgba(22, 9, 46, 0.96));
+      border: 1.5px solid rgba(255, 214, 91, 0.48);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 8px 20px rgba(8, 2, 20, 0.55);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 900;
+      font-size: 23px;
+      line-height: 1.12;
+      letter-spacing: 0.8px;
+      color: #fff;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+    }
+
+    .headline span {
+      display: block;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      letter-spacing: 2.6px;
+      color: var(--gold-light);
+      margin-bottom: 3px;
+    }
+
+    /* Goal & Level HUD Pill */
+    .hud {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: linear-gradient(180deg, rgba(38, 16, 76, 0.92), rgba(19, 8, 41, 0.96));
+      border: 1.5px solid rgba(220, 167, 255, 0.35);
+      border-radius: 18px;
+      padding: 10px 18px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 8px 20px rgba(8, 2, 20, 0.5);
+    }
+
+    .hud-block {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .hud-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.8px;
+      color: rgba(232, 202, 255, 0.72);
+    }
+
+    .hud b {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cyan-glow);
+      font-size: 26px;
+      font-weight: 800;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 14px rgba(24, 247, 232, 0.4);
+    }
+
+    .hud-divider {
+      width: 1px;
+      height: 34px;
+      background: linear-gradient(180deg, transparent, rgba(220, 167, 255, 0.35), transparent);
+    }
+
+    .level-badge {
+      padding: 7px 13px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, rgba(255, 214, 91, 0.2), rgba(245, 158, 11, 0.12));
+      border: 1px solid rgba(255, 214, 91, 0.55);
+      color: var(--gold-light);
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Recessed Metallic/Glass Tile Dock */
+    #rack {
+      position: relative;
+      z-index: 2;
+      margin: 4px auto 0;
+      width: 896px;
+      height: 118px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(12, 5, 26, 0.88), rgba(26, 11, 52, 0.82));
+      border: 1.5px solid rgba(220, 167, 255, 0.32);
+      box-shadow:
+        inset 0 6px 18px rgba(4, 1, 12, 0.85),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.14),
+        0 10px 26px rgba(8, 2, 20, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 11px;
+      padding: 0 18px;
+    }
+
+    /* 3D Tactile Keycap Letter Tile */
+    .tile {
+      position: relative;
+      width: 92px;
+      height: 90px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #ffffff 0%, #f6edff 68%, #e4d0fb 100%);
+      border: 1.5px solid #ffffff;
+      color: #230942;
+      display: grid;
+      place-items: center;
+      font-family: 'Fredoka', 'Outfit', sans-serif;
+      font-size: 54px;
+      font-weight: 700;
+      line-height: 1;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+      box-shadow:
+        0 6px 0 #8a56c4,
+        0 8px 0 #381263,
+        0 13px 18px rgba(6, 1, 16, 0.65),
+        inset 0 2px 3px rgba(255, 255, 255, 0.95);
+      transform: translateY(-2px);
+      animation: tileDrop 0.36s cubic-bezier(0.22, 1.35, 0.36, 1) backwards;
+    }
+
+    /* Subtle inner keycap dish highlight */
+    .tile::before {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border-radius: 11px;
+      border: 1px solid rgba(155, 102, 214, 0.22);
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.65), transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Subtle Scrabble-style corner point indicator */
+    .tile small {
+      position: absolute;
+      bottom: 6px;
+      right: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 800;
+      color: #6f3ca8;
+      opacity: 0.78;
+    }
+
+    @keyframes tileDrop {
+      0% {
+        opacity: 0;
+        transform: translateY(-18px) scale(0.84) rotate(-3deg);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(-2px) scale(1) rotate(0deg);
+      }
+    }
+
+    /* Timer & Round Status Section */
+    .timer-section {
+      position: relative;
+      z-index: 2;
+      width: 896px;
+      margin: 14px auto 0;
+    }
+
+    #timerwrap {
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(11, 4, 24, 0.9);
+      border: 1px solid rgba(218, 178, 255, 0.32);
+      padding: 2px;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+    }
+
+    #bar {
+      position: relative;
+      height: 100%;
+      width: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #06b6d4, #18f7e8);
+      box-shadow: 0 0 14px rgba(24, 247, 232, 0.7);
+      transition: width 0.95s linear, background 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    /* Glowing Leading Edge Spark on Progress Bar */
+    #bar::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      border-radius: 999px;
+      background: #ffffff;
+      filter: blur(2px);
+      opacity: 0.85;
+    }
+
+    #bar.warn {
+      background: linear-gradient(90deg, #f59e0b, #fde047);
+      box-shadow: 0 0 14px rgba(250, 204, 21, 0.75);
+    }
+
+    #bar.danger {
+      background: linear-gradient(90deg, #e11d48, #fb7185);
+      box-shadow: 0 0 16px rgba(244, 63, 94, 0.85);
+    }
+
+    #roundline {
+      margin-top: 7px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      font-weight: 800;
+      letter-spacing: 1.3px;
+      color: rgba(243, 230, 255, 0.88);
+      font-variant-numeric: tabular-nums;
+      padding: 0 4px;
+    }
+
+    #roundline .pill-stat {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #roundline .accent {
+      color: var(--cyan-glow);
+    }
+
+    /* Word Columns Grid (8, 7, 6, 5, 4, 3 Letters) */
+    #columns {
+      position: relative;
+      z-index: 2;
+      margin: 11px 32px 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 13px;
+    }
+
+    .group {
+      height: 114px;
+      border-radius: 16px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 6px 16px rgba(7, 2, 18, 0.35);
+      padding: 10px 13px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .group h3 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 1.4px;
+      color: #d8b4fe;
+      margin: 0;
+    }
+
+    .group-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(24, 247, 232, 0.12);
+      border: 1px solid rgba(24, 247, 232, 0.28);
+      color: var(--cyan-glow);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .words {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-content: flex-start;
+    }
+
+    .word {
+      background: linear-gradient(180deg, rgba(24, 247, 232, 0.18), rgba(6, 182, 212, 0.12));
+      border: 1px solid rgba(24, 247, 232, 0.55);
+      box-shadow: 0 2px 8px rgba(6, 182, 212, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 4px 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      color: #67fff4;
+      text-shadow: 0 0 8px rgba(24, 247, 232, 0.35);
+      animation: popIn 0.28s cubic-bezier(0.22, 1.35, 0.36, 1);
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.75); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .empty {
+      display: inline-block;
+      width: 34px;
+      height: 25px;
+      border-radius: 7px;
+      background: rgba(10, 4, 22, 0.55);
+      border: 1px dashed rgba(196, 132, 252, 0.28);
+    }
+
+    /* Bottom Footer Area: Notification, Help & Leaderboard */
+    #leader {
+      position: absolute;
+      z-index: 3;
+      right: 32px;
+      bottom: 18px;
+      width: 372px;
+      height: 152px;
+      background: linear-gradient(180deg, rgba(24, 10, 48, 0.94), rgba(13, 5, 28, 0.97));
+      border: 1.5px solid rgba(255, 214, 91, 0.42);
+      border-radius: 18px;
+      padding: 11px 15px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        0 10px 24px rgba(5, 1, 14, 0.65);
+    }
+
+    #leader h2 {
+      margin: 0 0 7px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 900;
+      color: var(--gold-light);
+      letter-spacing: 1.3px;
+    }
+
+    .player {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2.5px 4px;
+      font-size: 13.5px;
+      font-weight: 700;
+      border-radius: 6px;
+    }
+
+    .player-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .rank-badge {
+      display: inline-grid;
+      place-items: center;
+      width: 19px;
+      height: 19px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.1);
+      color: #e9d5ff;
+      flex-shrink: 0;
+    }
+
+    .rank-1 {
+      background: linear-gradient(135deg, #fde047, #f59e0b);
+      color: #271200;
+      box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+    }
+
+    .rank-2 {
+      background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+      color: #0f172a;
+    }
+
+    .rank-3 {
+      background: linear-gradient(135deg, #fdba74, #c2410c);
+      color: #fff;
+    }
+
+    .player strong {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cyan-glow);
+      font-size: 13.5px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .empty-leader {
+      height: 102px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: rgba(216, 180, 254, 0.65);
+      border: 1px dashed rgba(216, 180, 254, 0.22);
+      border-radius: 10px;
+    }
+
+    /* Broadcast Toast Alert Banner */
+    #notice {
+      position: absolute;
+      z-index: 4;
+      left: 34px;
+      bottom: 52px;
+      min-width: 480px;
+      max-width: 760px;
+      padding: 12px 18px;
+      background: linear-gradient(90deg, rgba(16, 42, 54, 0.96), rgba(24, 14, 52, 0.96));
+      border: 1.5px solid var(--cyan-glow);
+      border-left: 6px solid var(--cyan-glow);
+      border-radius: 14px;
+      box-shadow:
+        0 10px 28px rgba(0, 0, 0, 0.65),
+        0 0 20px rgba(24, 247, 232, 0.25);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      pointer-events: none;
+    }
+
+    #notice.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .notice-badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--cyan-glow);
+      color: #06242b;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      flex-shrink: 0;
+    }
+
+    /* Bottom Chat Instruction Bar */
+    #help {
+      position: absolute;
+      z-index: 2;
+      left: 34px;
+      bottom: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 6px 14px;
+      border-radius: 10px;
+      background: rgba(12, 5, 26, 0.68);
+      border: 1px solid rgba(218, 178, 255, 0.2);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      color: rgba(244, 228, 255, 0.85);
+    }
+
+    #help span {
+      color: var(--gold-light);
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <div id="cabinet">
+    <div id="header">
+      <div class="logo-wrap">
+        <div class="logo">WORDS</div>
+        <div class="logo-sub"><i class="live-dot"></i>ON STREAM · KAXMOK</div>
+      </div>
+
+      <div class="headline">
+        <span>LIVE CHAT CHALLENGE</span>
+        BE THE FIRST TO FIND AN ANAGRAM!
+      </div>
+
+      <div class="hud">
+        <div class="hud-block">
+          <div class="hud-label">STREAM GOAL</div>
+          <b id="goal">0/60</b>
+        </div>
+        <div class="hud-divider"></div>
+        <div class="level-badge" id="level">LEVEL 1</div>
+      </div>
+    </div>
+
+    <div id="rack"></div>
+
+    <div class="timer-section">
+      <div id="timerwrap"><div id="bar"></div></div>
+      <div id="roundline"></div>
+    </div>
+
+    <div id="columns"></div>
+
+    <div id="leader">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+        TOP WORD HUNTERS
+      </h2>
+      <div id="players"></div>
+    </div>
+
+    <div id="notice"><span class="notice-badge">MATCH</span><span id="notice-text"></span></div>
+    <div id="help"><span>CHAT COMMAND:</span> TYPE YOUR WORD DIRECTLY IN CHAT · NO PREFIX NEEDED</div>
+  </div>
+
+  <script>
+    const BANK = [
+      ["PLANETS","PLANET PLANTS STAPLE PLATE PLANE PANEL PETAL SLANT SLATE STEAL STALE LEAST TALES TAPES PASTE LEAPS PEALS PALES SEPAL PANTS PLANS PATES SEAT EAST EATS TEAS TAPE PAST LATE TALE PLAN PANT LENT SENT NEST NEAT EARN NEAR ANTS SNAP SPAT STEP PEAS SALE SEAL"],
+      ["ORANGES","ORANGE RANGES ANGER RANGE GROAN ORGAN SNORE AROSE GEARS GOERS SOAR ROSE EARS ERAS SAGE RAGE GEAR EARN NEAR ONES NOSE SORE SONG GONE GOES AGES EONS RANG GORE EGO ORE RAN NOR AGE"],
+      ["TEACHER","TEACHER CHEATER HECTARE TEACH CHEAT REACH HEART EARTH THERE THREE CHEER TRACE REACT CATER CRATE CARET RACE CARE EACH HEAR HERE TREE RATE TEAR ACHE CHAT HEAT HATE EAT TEA THE HER ART CAR CAT"],
+      ["PAINTER","PAINTER REPAINT PERTAIN PAINT TRAIN RETAIN RETINA PARENT PIRATE INERT INTER TAPER PRATE RIPEN TIRE TIER RIPE PINE PANE PAIR PAIN RAIN RANT RATE TEAR NEAR EARN TAPE PART TRAP TARP PANT PINT PATE TAN RAN TAR RAT"],
+      ["MONSTER","MONSTER MENTORS SERMON MENTOR TENORS TONERS TENOR STONE STORE TONES NOTES ONSET TERMS METRO MORE MOST NEST SENT TORN ROSE SOME SORT TONE NOTE REST STEM TERM ONES NORM MORN NOSE TORE ORES ROTS SORE NETS METS MEN ONE TEN"],
+      ["CAUTION","CAUTION AUCTION ACTION NATION TONIC COUNT CANTO TUNIC COAT AUNT UNIT TUNA CANT ICON INTO ANTI UNTO COIN CUT CAT CAN ACT NOT TON NUT OUT OAT TAN TIN ION CON ANT"],
+      ["FOLDERS","FOLDERS FOLDER OLDER LOSER ROLES FOLDS DOERS REDOS FOLD ROLE ROSE DOES DOER SOLD LORD ORES RODS DOSE LORE RODE REDO FORD FOES LODE SLED SELF FLED FLOE SOLE SORE OLD LED RED ORE"],
+      ["STATION","STATION NATION STAIN SATIN TOAST TITAN TAINT STINT SAINT TINTS ANTS INTO IONS TANS TOTS STAT TINS SNOT SITS SNIT TINT SIT SAT TAN TIN ION NOT ANT OAT ITS SON TON SIN"],
+      ["STREAMS","STREAMS MASTER STREAM TAMERS ARMETS SMART STEAM TEAMS MEATS MATES TERMS TAMES STARE TEARS RATES TARES ASTER SMEAR MARES RAMS STAR MAST SAME SEAM TEAM MEAT MATE EARS EATS SEAT EAST"],
+      ["CREDIT","DIRECT CITED TRICE TRIED TIRED CRIED RICED CIDER CREDO DICE RICE RIDE TIDE TIER TIRE RITE EDIT DIET DIRT DIRE REND RIND RICE RED TIE DIE ICE RID"],
+      ["GARDENS","DANGER GARDEN RANGED GANDER DARNED RANGED RANGES ANGER GRADE GRADE RAGED DEARS DARES READS SNARED SANDER GRADE DARE DEAR READ EARN NEAR SAND SEND RANG DARN GEAR AGED"],
+      ["SILENCE","SILENCE LICENSE ENLICE NICELS SCENIC SILEN NIECE SLICE SINCE LINES LIENS CLIES ISLE LICE NICE LINE LENS LIES SINE SEEN ELSE"],
+      ["TRIANGLE","ALTERING ALERTING INTEGRAL RELATING TAILERING REALIGN INERTIA RETINAL LINEAR TINGLE ANGLE GIANT GRAIN TRAIN TRIAL LATER ALERT ALTER LARGE RANGE REGAL GLEAN LEARN RENAL"],
+      ["CREATION","REACTION CREATION ANORETIC NOTARICE CERTAIN REACTION CORNET CATION ACTION ATONER ORIENT CATER CRATE TRACE REACT RECOIL TRAIN RATIO IRATE OCEAN CRANE ACORN CANOE"],
+      ["NOTEBOOK","NOTEBOOK BOOKNOTE TOKEN BENTO TOKEN BETOOK BONK NOTE TONE TONE BOOK BOOT KNOT BONE BOON BOOT NOOK TOOK ONE NOT TOO TOE TON"],
+      ["CHARGED","CHARGED CHARGE CHARED CHARD CHARD CHARE GRACE REACH CHAIR CHARD HEARD HARD CARE RACE EACH ARCH CARD ACHE RAGE READ DEAR GEAR"],
+      ["DUSTIER","DUSTIER STUDIER SUITED DUET SITED TIRED TRIED RUSTED STRIDE STUDY SUITE SUITED DUST RIDE SIDE TIDE TIRE TIER SUIT USER USED TRUE RISE"],
+      ["READING","READING DANGER RANGED GAINED GRAIN RANGE GRADE GRAND RING GAIN GEAR DEAR READ DARE DING DINE RAIN NEAR EARN AGED"],
+      ["CAMPERS","CAMPERS CAMPERS SCAMPER CAMPER SCREAM RECAMP CRAMPS CRAMP CAMPS CRAPE PACES SPEAR SPARE PEARS PARSE RECAP SPACE CREAM ACRES CAPER SCRAP"],
+      ["PASTURE","PASTURE UPSTARE PASTEUR PUREST PAUSER PATURE PASTE STARE TEARS RATES TAPER PRATE PARSE SPARE SPEAR SUPER SURE TRUE USER"],
+      ["DREAMING","DREAMING MARGINED DREAMING REMAIN GARDEN DANGER GAINED GRAIN RAISED GERMAN DANGER RINGED DINER RANGE GRADE DREAM GRAIN MARGIN"],
+      ["SALTIER","SALTIER REALIST RETAILS TAILERS SALTER STALER RETAIL SERIAL ALTER RAISE ARISE STAIR TRAIL TRIAL STALE STEAL LEAST TAIL TIRE TIER RATE TEAR"],
+      ["PASTELS","PASTELS STAPLES PLATES PETALS STAPLE PASTEL PLATE PETAL PLEAT LEAPS PALES PEALS SEPAL LEAST STEAL STALE SLATE TALES PASTE TAPES"],
+      ["CINEMAS","CINEMAS CINEMA SEMINA ANEMIC CANES ACNES AMINE MINES NAMES MEANS MICES MEAN NAME MINE MICE CASE ACNE SAME SEAM MANS"],
+      ["DOLPHIN","DOLPHIN PHONID PHONIC HOLD PINHO PHONE POND HIND LION LOIN PLOD POND DOIN HOP PIN DIP OLD LID"],
+      ["RAINBOW","RAINBOW BRAIN BROWN ROBIN BARON BORN WARN WORN RAIN RAIN BARN BOAR BROW WARB RAN WAR ROW NOW AIR BAN BIN ROB WIN"],
+      ["KITCHEN","KITCHEN THICKEN KENCHIT THIN KITE HINT HICK TICK THEN THEY KIN KIT TEN HEN HIT ICE TIN THE"],
+      ["PICTURE","PICTURE PICTURE RECUT PRICE TRICE CURE CUTE PURE RICE RITE TIRE TIER PIER PERT RICE CITE"],
+      ["DYNAMIC","DYNAMIC CYANIC CANDY ACID MANY MIND DICE DAMN MAIN MIDI DYNAM CAN AND ANY DAY MAY DIM DAM"],
+      ["HOLIDAY","HOLIDAY HOLY DAILY DIALY DOILY IDOL LOAD LAID LADY HOLD OLD OIL LAY DAY HAD LAD"],
+      ["COUNTER","COUNTER RECOUNT CORNET TRUCE COUNT ROUTE OUTER TENOR TONER TUNER CURE CUTE TONE NOTE RENT TURN TORN TRUE"],
+      ["BARGAIN","BARGAIN AIRBAG GRAIN BRAIN RABID RING GAIN RAIN BANG BRAG BARN RANG GARB RAG BAG BIN AIR RAN"],
+      ["WHISPER","WHISPER WHIPERS WIPERS WISPER SWIPER WIRES WIRES WHIR PIES WIRE WISE WISH RISE HIRE WIRE SIP HER"],
+      ["DIALOGS","DIALOGS DIALOG GOAL IDOL LOAD GOLD GOAD SAIL ALSO SOIL SAID DIAL LAID LAGO GLAD DOG LOG LAD OIL"],
+      ["FANTASY","FANTASY FANTAS FAST ANY STAY FANS FAST TANS NAYS SANT FAY TAN SAY ANT FAN SAT"],
+      ["JOURNEY","JOURNEY JOURNEY ENJOY JERNY JOU JURY YOUR JUNE JOEY RUNE EURO JERK ONE OUR YOU RUN"],
+      ["MYSTERY","MYSTERY MYSTERY SYSTEM MYST TERMS RESTY METER STYLE STEER TREYS REST TERM MERE YES TRY"],
+      ["KARAOKE","KARAOKE KARAOKE KOREA OAKER AROKE KOREA ROAR ORE ARE ERA OAK EAR RARE ROE"],
+      ["VIOLETS","VIOLETS VIOLET OLIVES VOILE STOLE TOILS TOILE EVILS LIVES VILES VOTE LOVE LIVE VILE SOIL SITE TIES"],
+      ["DANCERS","DANCERS CANDERS SCANDER DANCED CANDES DANCES DANCE SCARE ACRES RACES SNARE SANDER DARN CANE CARE CASE SCAN"],
+      ["FIREMAN","FIREMAN MARINE REMAIN INFRA MINER FRAME FIRMAN FAMINE FINE FIRE FIRM MINE MEAN NAME NEAR EARN RAIN FAIR FARM"],
+      ["LISTEN","LISTEN SILENT ENLIST TINSEL INLETS INSET LINES TILES LENT LINE LIES SINE SENT NEST"],
+      ["RESCUE","RESCUE SECURE RECUSE CURES CURSE REUSE USER SURE CURE RUSE RUES"],
+      ["EARTHS","HEARTS EARTHS HATERS SHARES SHEARS HEART EARTH HATER SHARE SHEAR HEARS STARE TEARS RATES"],
+      ["SPIRAL","SPIRAL APRIL PAIRS LAIRS RAILS LIARS PAILS LAPS SLAP PAIR AIRS RAIL SAIL"],
+      ["RESIST","RESIST SISTER RITES TRIES TIERS TIRES RESTS RISES SIRE SITS SITE TIRE TIER"],
+      ["SECURE","SECURE RESCUE RECUSE CURSE CURES REUSE USER SURE CURE RUSE"],
+      ["RANDOM","RANDOM ADORN RADON MANOR ROMAN MOAN ROAM ROAD DARN RAM RAN"],
+      ["POETRY","POETRY TROPE POET PORE ROPE ROTE TORE TYPE TYRE YORE TOY TOP"],
+      ["FATHER","FATHER HEARTH AFTER HEART EARTH HATER FARE FEAR HEAR HARE RATE TEAR"],
+      ["FRIENDS","FRIENDS FRIEND FINDER DINERS RINSED SNIDER FIENDS FIEND FINER FINES"],
+      ["OPTIONS","OPTIONS PISTON POINTS PINOTS PITONS POSIT POINT PINTS PINT POST STOP TOPS"],
+      ["GLANCED","GLANCED CANDLE GLANCE ANGLED ANGEL GLEAN ANGLE CLEAN DANCE LANCE DEAL LEAD"],
+      ["CRANES","CRANES CANERS NACRES SCARE RACES CANES ACRES CRANE CARES SNARE ACNE CASE"],
+      ["STUDY","STUDY DUSTY DUTY STUD DUST STY"],
+      ["THING","THING NIGHT THIN HINT NIGH HIT TIN"],
+      ["STREAM","STREAM MASTER TAMERS SMART STEAM TEAMS MEATS MATES TERMS TAMES STARE TEARS RATES TARES"],
+      ["SHOUT","SHOUT SOUTH THOUS SHOT SHUT OUTS HOST THOU HOTS"],
+      ["PASTOR","PASTOR PARTS TRAPS STRAP SPRAT TARPS SPORT PORTS PART TRAP TARP STAR STOP"],
+      ["SLATED","SLATED SALTED LASTED DESALT DELTAS STALE STEAL LEAST SLATE DEALS LEADS TALES"],
+      ["FRESCO","FRESCO FORCES SCORES FORCE SCORE CORES CORE ROSE SORE ORES"],
+      ["LISTED","LISTED IDLEST TILDE SLIDE SIDLE STILE TILES SITED DIETS EDITS TIED TIDE"],
+      ["RESORT","RESORT SORTER RETROS ROSTER STORE SORT ROSE REST TORE ORES ROTS"],
+      ["CARETS","CARETS CATERS REACTS TRACES CRATES CASTER RECAST CATER CRATE TRACE REACT"],
+      ["SEATING","SEATING TEASING EATING NEGATE STAGE STAIN SAINT GATES GIANT GAIN SEAT EAST"],
+      ["THREAD","THREAD HATRED DEARTH HATER HEART EARTH HARD HEAR READ DEAR RATE"],
+      ["REPAIRS","REPAIRS PRAISE ASPIRE SPIREA PAIRS PEARS RAISE ARISE SPEAR SPARE PARSE"],
+      ["SCALER","SCALER CLEARS CLEAR SCALE SCARE RACES CARES ACRES LACES"],
+      ["MARBLE","MARBLE AMBER BLAME REALM BALER BREAM LAMER MALE BEAR BARE REAL"],
+      ["ORIENT","ORIENT TONIER INTRO INERT INTER TENOR TONER TONE NOTE TIRE TIER RITE"],
+      ["SECANT","SECANT STANCE CANES SCAN CENT CATS EAST SEAT TENS SENT"],
+      ["PLUNDER","PLUNDER UNDER RULED PRUNE LEND LURE PURE DUNE"],
+      ["GUITARS","GUITARS GAITS STAIR STRIA SUGAR SITAR GAIT STAR RUST"],
+      ["SILVER","SILVER LIVERS LIVRES RIVELS RIVES LIVER LIVES VILER RILES"],
+      ["CASTLE","CASTLE CLEATS SCALE STALE STEAL SLATE LEAST TALES LACES"],
+      ["DANGER","DANGER GARDEN RANGED GANDER ANGER RANGE GRADE RAGED DEAR READ DARE EARN NEAR"],
+      ["BRAINY","BRAINY BRAIN RAINY BARN RAIN AIRY BRAY BARNY"],
+      ["CLOSER","CLOSER SCORE CORES ROLES ROSE SORE CORE LORE ROLE"],
+      ["TRAVEL","TRAVEL LATER ALERT ALTER RAVEL REAL RATE TEAR TALE"],
+      ["GLOWER","GLOWER GROWL LOWER GLOW GORE ROLE GROW"],
+      ["MOTHER","MOTHER THERMO OTHER THROE HOMER HOME MORE MOTE THEM TOME"],
+      ["PLANER","PLANER PLANE PANEL PEARL LEARN RENAL NEAR EARN PLAN PANE PALE PEAL"],
+      ["SINGER","SINGER REIGNS RESIGN SIGNER SIREN RINGS REINS SIGN SING RING"],
+      ["BOTTLE","BOTTLE BLOT BOLT LOBE BELT TOTE LOT TOE"],
+      ["GAMERS","GAMERS GAMES GEARS RAGES MARES GEAR GAME SAME SEAM"],
+      ["FINDER","FINDER FRIEND FIEND FINER FIRED RIDE DINE FINE FIRE"],
+      ["SQUARE","SQUARE SCARE ACRES RACES CARES USER SURE EARS"],
+      ["CANDLE","CANDLE LANCED DANCED CLEAN LANCE DANCE DEAL LEAD LEND LAND"],
+      ["BRIGHT","BRIGHT BIRTH RIGHT GIRTH GRIT RIG"],
+      ["SCARED","SCARED SACRED CADRES CEDARS CARED RACES SCARE ACRES CARES READ DEAR"],
+      ["TROPIC","TROPIC TOPIC CROP TRIP RIOT PORT"],
+      ["BLAZER","BLAZER BLARE BLEAR BLAZE BRAZE BARE BEAR REAL ZEAL"],
+      ["MINGLE","MINGLE LIMEN MINE LINE LIME MILE"],
+      ["THRONE","THRONE HORNET OTHER THORN TENOR TONER NORTH HORN TONE NOTE"],
+      ["CARTON","CARTON CANTOR CONTRA ACTOR CART RANT TORN TACO COAT CORN"],
+      ["SPREAD","SPARED DRAPES PARSED SPEAR SPARE PEARS PARSE READ DEAR"],
+      ["TANGLE","TANGLE ANGLE ANGEL GLEAN LATE TALE TEAL TANG"],
+      ["SPOKEN","SPOKEN POKES SPOKE OPENS PEONS NOSE ONES OPEN POKE"],
+      ["WANDER","WANDER WARNED WARDEN DARN WEAR WARE DEAR READ"],
+      ["GRAINS","GRAINS GAIN RANG RAIN RING SIGN SING AIRS RAGS"],
+      ["BORDER","BORDER ROBED BORED ORDER RODE DOER REDO BORE ROBE ORE"],
+      ["POWDER","POWDER DOWER POWER PROW RODE DOER WORD WORE"],
+      ["FAMOUS","FAMOUS FOAMS FOAM FUSE SUMO SOAP SOFA"],
+      ["CAMPUS","CAMPUS SCAMP CAMPS CUPS CAPS MAPS SUM CAP CAMP"],
+      ["RIBBON","RIBBON ROBIN BORN IRON ROB RIB BIN NOR"],
+      ["COSTUME","COSTUME CUSTOM COMETS COMES MOUSE MUTES CUTS COST COME SOME"],
+      ["MANTLES","MANTLES LAMENTS MENTALS MANTEL STAMEN MEANT MEANS METAL"],
+      ["READERS","READERS DEARER ERASER EARS READ DEAR DARE SEAR"],
+      ["HARMONY","HARMONY ROMANY HARM MANY HARM RAY HAY NAY"],
+      ["JUNGLE","JUNGLE LUNGE JUNE LUNG GLEN JUG"],
+      ["MACHINE","MACHINE CINEMA CHAIN CHIME CHINA ACME MINE NAME"],
+      ["FROZEN","FROZEN FROZE ZONE ZERO FERN FORE ORE ONE"],
+      ["STORING","STORING STING TONGS RINGS GRINS RING SING"],
+      ["CLEANER","CLEANER ENLACER CLEAR CLEAN LANCE LEARN RENAL NEAR EARN"],
+      ["MATERIAL","MATERIAL MARITAL RETAIL TAILER"],
+      ["SILENCE","SILENCE LICENSE SCENIC SLICE SINCE LINES LIENS NIECE NICE LINE LENS"],
+      ["DYNAMIC","DYNAMIC CYANIC CANDY ACID MANY MIND DICE DAMN MAIN MIDI"],
+      ["HOLIDAY","HOLIDAY DOILY IDOL LOAD LAID LADY HOLD HOLY DAILY DIAL"],
+      ["COUNTER","COUNTER RECOUNT CORNET TRUCE COUNT ROUTE OUTER TENOR TONER TUNER"],
+      ["BARGAIN","BARGAIN AIRBAG GRAIN BRAIN RABID RING GAIN RAIN BANG BRAG BARN"],
+      ["WHISPER","WHISPER WIPERS WIRES WHIR PIES WIRE WISE WISH RISE HIRE"],
+      ["DIALOGS","DIALOGS DIALOG GOAL IDOL LOAD GOLD GOAD SAIL ALSO SOIL SAID DIAL"],
+      ["JOURNEY","JOURNEY ENJOY JURY YOUR JUNE JOEY RUNE EURO ONE OUR YOU RUN"],
+      ["MYSTERY","MYSTERY SYSTEM TERMS METER STYLE STEER REST TERM MERE YES TRY"],
+      ["VIOLETS","VIOLETS VIOLET OLIVES VOILE STOLE TOILS EVILS LIVES VOTE LOVE LIVE"],
+      ["DANCERS","DANCERS DANCES DANCE SCARE ACRES RACES SNARE SANDER DARN CANE CARE"],
+      ["FIREMAN","FIREMAN MARINE REMAIN MINER FRAME FINE FIRE FIRM MINE MEAN NAME NEAR"]
+    ];
+
+    const LETTER_PTS = {
+      A:1, B:3, C:3, D:2, E:1, F:4, G:2, H:4, I:1, J:8, K:5, L:1, M:3,
+      N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:4, W:4, X:8, Y:4, Z:10
+    };
+
+    let puzzleIndex = 0, round = 1, seconds = 55, found = [], scores = {}, totalFound = 0, level = 1, noticeTimer = null;
+    let lastRenderedRound = -1;
+
+    const $ = id => document.getElementById(id);
+    const clean = s => s.toUpperCase().replace(/[^A-Z]/g, "");
+
+    function validWords(entry) {
+      const available = [...entry[0]].reduce((m, c) => (m[c] = (m[c] || 0) + 1, m), {});
+      return [...new Set(entry[1].split(/\s+/).map(clean).filter(w => {
+        if (w.length < 3 || w.length > 8) return false;
+        const used = {};
+        for (const c of w) {
+          used[c] = (used[c] || 0) + 1;
+          if (used[c] > (available[c] || 0)) return false;
+        }
+        return true;
+      }))];
+    }
+
+    function current() {
+      return BANK[puzzleIndex % BANK.length];
+    }
+
+    function shuffle(s, seed) {
+      let a = [...s];
+      for (let i = a.length - 1; i > 0; i--) {
+        let j = (seed * 31 + i * 17) % (i + 1);
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function notify(t) {
+      $("notice-text").textContent = t;
+      $("notice").classList.add("show");
+      clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(() => $("notice").classList.remove("show"), 3200);
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[c]));
+    }
+
+    function render() {
+      const entry = current();
+      const [letters] = entry;
+      const totalAnswers = validWords(entry).length;
+
+      // Only re-trigger drop animation on the tile rack when a new round starts
+      if (lastRenderedRound !== round) {
+        lastRenderedRound = round;
+        $("rack").innerHTML = shuffle(letters, round)
+          .map((ch, idx) => `<div class="tile" style="animation-delay:${idx * 0.04}s">${ch}<small>${LETTER_PTS[ch] || 1}</small></div>`)
+          .join("");
+      }
+
+      $("goal").textContent = totalFound + "/60";
+      $("level").textContent = "LEVEL " + level;
+
+      $("roundline").innerHTML =
+        `<span class="pill-stat">ROUND <span class="accent">#${round}</span></span>` +
+        `<span class="pill-stat"><span class="accent">${String(seconds).padStart(2, "0")}s</span> REMAINING</span>` +
+        `<span class="pill-stat"><span class="accent">${found.length}</span> / ${totalAnswers} WORDS FOUND</span>`;
+
+      const bar = $("bar");
+      bar.style.width = (seconds / 55 * 100) + "%";
+      bar.classList.toggle("warn", seconds <= 20 && seconds > 10);
+      bar.classList.toggle("danger", seconds <= 10);
+
+      const groups = [8, 7, 6, 5, 4, 3].map(n => ({
+        n,
+        words: found.filter(w => w.length === n)
+      }));
+
+      $("columns").innerHTML = groups.map(g =>
+        `<div class="group">` +
+          `<div class="group-header"><h3>${g.n} LETTERS</h3><span class="group-count">${g.words.length}</span></div>` +
+          `<div class="words">` +
+            (g.words.length
+              ? g.words.slice(-8).map(w => `<span class="word">${w}</span>`).join("")
+              : `<span class="empty"></span><span class="empty"></span><span class="empty"></span>`) +
+          `</div>` +
+        `</div>`
+      ).join("");
+
+      const topPlayers = Object.entries(scores)
+        .sort((a, b) => b[1].points - a[1].points)
+        .slice(0, 5);
+
+      $("players").innerHTML = topPlayers.length
+        ? topPlayers.map(([id, p], i) =>
+            `<div class="player">` +
+              `<div class="player-left">` +
+                `<span class="rank-badge rank-${i + 1}">${i + 1}</span>` +
+                `<span>${esc(p.name)}</span>` +
+              `</div>` +
+              `<strong>${p.points.toLocaleString()}</strong>` +
+            `</div>`
+          ).join("")
+        : `<div class="empty-leader">BE THE FIRST WORD HUNTER!</div>`;
+    }
+
+    window.submitChatWord = (id, name, raw) => {
+      const word = clean(raw);
+      if (!/^[A-Z]{3,8}$/.test(word)) return { ok: false, reason: "invalid" };
+      const [letters] = current();
+      const answers = validWords(current());
+      if (!answers.includes(word)) return { ok: false, reason: "invalid" };
+      if (found.includes(word)) return { ok: false, reason: "duplicate" };
+
+      found.push(word);
+      totalFound++;
+      const pts = word.length * 10 + (word.length === letters.length ? 50 : 0);
+
+      if (!scores[id]) scores[id] = { name: String(name).slice(0, 18), points: 0 };
+      scores[id].points += pts;
+
+      notify(`${String(name).toUpperCase()} FOUND ${word}  +${pts} PTS`);
+      render();
+
+      if (totalFound >= 60) {
+        notify("60 WORD GOAL CLEARED! LEVEL UP!");
+        totalFound = 0;
+        level++;
+        render();
+      }
+      return { ok: true, points: pts, word };
+    };
+
+    function nextRound() {
+      round++;
+      puzzleIndex++;
+      seconds = 55;
+      found = [];
+      render();
+    }
+
+    setInterval(() => {
+      seconds--;
+      if (seconds <= 0) nextRound();
+      else render();
+    }, 1000);
+
+    render();
+  </script>
+</body>
+</html>
