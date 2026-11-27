@@ -1,6 +1,6 @@
 """In-stream KAXMOK quiz overlay and local live leaderboard."""
 from __future__ import annotations
-import json, time
+import json, time, os
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -26,9 +26,11 @@ class QuizGame:
   return int(elapsed//ROUND_SECONDS), int(elapsed%ROUND_SECONDS)
  def consume_votes(self):
   if not VOTES_FILE.exists(): return
+  processing=VOTES_FILE.with_suffix(".processing")
   try:
-   lines=VOTES_FILE.read_text(encoding="utf-8").splitlines()
-   VOTES_FILE.write_text("",encoding="utf-8")
+   os.replace(VOTES_FILE,processing)
+   lines=processing.read_text(encoding="utf-8").splitlines()
+   processing.unlink(missing_ok=True)
   except OSError: return
   for line in lines:
    try: ev=json.loads(line)
