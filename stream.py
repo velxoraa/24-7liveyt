@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PIL import Image\nfrom subprocess import PIPE
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parent
 SONGS_DIR = ROOT / "songs"
