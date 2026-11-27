@@ -14,7 +14,7 @@ let stopping = false;
 let receivedMessages = 0;
 let workerAccepted = 0;
 let bgWriteQueue = Promise.resolve();
-let quizVoteQueue = Promise.resolve();
+let wordVoteQueue = Promise.resolve();
 let youtubeApi = null;
 let liveChatId = null;
 let ownerChannelId = "";
@@ -96,12 +96,12 @@ function handleIncomingMessage({ authorId, authorName, avatar, isModerator, text
   if (!authorId || !message) return;
   const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
   if (bgMatch) queueBackgroundChange(bgMatch[1], authorName || authorId);
-  const quizMatch = message.trim().match(/^(?:!quiz|!answer|!q)\s+([ABCD])$/i);
-  if (quizMatch) {
-    const vote = { id: authorId, name: authorName || authorId, answer: quizMatch[1].toUpperCase(), at: Date.now() };
-    quizVoteQueue = quizVoteQueue.then(() => appendFile("quiz_votes.jsonl", JSON.stringify(vote) + "\n", "utf8"))
-      .catch(error => console.error("Could not record quiz vote:", error.message));
-    console.log(`Quiz vote received from ${authorName || authorId}: ${vote.answer}`);
+  const wordMatch = message.trim().match(/^!word\\s+([A-Za-z]{3,7})$/i);
+  if (wordMatch) {
+    const vote = { id: authorId, name: authorName || authorId, word: wordMatch[1].toUpperCase(), at: Date.now() };
+    wordVoteQueue = wordVoteQueue.then(() => appendFile("word_votes.jsonl", JSON.stringify(vote) + "\\n", "utf8"))
+      .catch(error => console.error("Could not record word submission:", error.message));
+    console.log(`Word submission received from ${authorName || authorId}: ${vote.word}`);
   }
   if (ownerChannelId && authorId === ownerChannelId) return;
   const event = { author_id: authorId, author: authorName || authorId, avatar_url: avatar || "", is_moderator: Boolean(isModerator), text: message };
