@@ -20,15 +20,20 @@ async function main(){
  page=await browser.newPage({viewport:{width:WIDTH,height:HEIGHT},deviceScaleFactor:1});
  await page.goto("file://"+process.cwd()+"/overlay/anagram-game.html");
  console.error("HTML ANAGRAM RENDERER READY");
+ let nextCapture=Date.now();
  while(true){
   await consume();
-  // Chromium screenshots are expensive. Capture at 5 FPS and repeat each
-  // overlay frame 6 times; the background/encoder remain at 30 FPS.
+  // Capture on a fixed 200ms cadence (5 overlay FPS). Repeat each image
+  // six times to feed the 30 FPS compositor without bursty frame batches.
   const png=await page.screenshot({type:"png",omitBackground:true});
   const raw=await sharp(png).ensureAlpha().raw().toBuffer();
   for(let i=0;i<DUPLICATE_FRAMES;i++){
    if(!OUT.write(raw))await new Promise(resolve=>OUT.once("drain",resolve));
   }
+  nextCapture+=1000/OVERLAY_FPS;
+  const delay=Math.max(0,nextCapture-Date.now());
+  if(delay>0)await new Promise(resolve=>setTimeout(resolve,delay));
+  else nextCapture=Date.now();
  }
 }
 main().catch(e=>{console.error("HTML GAME RENDERER ERROR",e);process.exit(1)});
