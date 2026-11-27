@@ -8,7 +8,7 @@
 .headline{position:absolute;left:385px;top:45px;width:500px;text-align:center;border:3px solid #dbaaff;border-radius:20px;background:#35105e;padding:14px 8px;font-weight:1000;font-size:28px;letter-spacing:1px;text-shadow:0 2px #9d66d1}
 .hud{margin-left:auto;border:3px solid #dca7ff;background:#35105e;border-radius:18px;padding:12px 22px;text-align:center;font-weight:900;min-width:225px}.hud b{color:#19f5e5;font-size:30px}.hud span{color:#ffd65b;margin-left:18px}
 #rack{position:absolute;top:157px;left:190px;width:872px;height:116px;border-radius:25px;background:#c99aff;border:4px solid #f5dfff;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 5px #51178a}
-.tile{width:104px;height:94px;border:4px solid #4a187c;border-radius:14px;background:linear-gradient(#fff4ff,#e8cfff);color:#35105e;display:grid;place-items:center;font-size:58px;font-weight:1000;box-shadow:inset 0 0 0 3px #b77de5;text-shadow:0 1px #fff}
+.tile{width:94px;height:94px;border:4px solid #4a187c;border-radius:14px;background:linear-gradient(#fff4ff,#e8cfff);color:#35105e;display:grid;place-items:center;font-size:58px;font-weight:1000;box-shadow:inset 0 0 0 3px #b77de5;text-shadow:0 1px #fff}
 #timerwrap{position:absolute;left:175px;top:291px;width:930px;height:18px;border-radius:15px;background:#32105b;border:2px solid #dbaaff;overflow:hidden}#bar{height:100%;width:100%;background:linear-gradient(90deg,#17ffe8,#06c6dd);box-shadow:0 0 12px #00fff0}
 #roundline{position:absolute;top:317px;left:175px;font-size:15px;font-weight:900;letter-spacing:1px;color:#f5e8ff}
 #columns{position:absolute;left:35px;right:35px;top:360px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
@@ -156,16 +156,23 @@ const BANK=[
 ["DANCERS","DANCERS DANCES DANCE SCARE ACRES RACES SNARE SANDER DARN CANE CARE"],
 ["FIREMAN","FIREMAN MARINE REMAIN MINER FRAME FINE FIRE FIRM MINE MEAN NAME NEAR"]
 ];
-let puzzleIndex=0,round=1,seconds=55,found=[],scores={},seen=new Set(),noticeTimer=null,lastTick=Date.now();
+let puzzleIndex=0,round=1,seconds=55,found=[],scores={},totalFound=0,level=1,noticeTimer=null;
 const $=id=>document.getElementById(id);
 const clean=s=>s.toUpperCase().replace(/[^A-Z]/g,"");
-function validWords(entry){return [...new Set(entry[1].split(/\s+/).map(clean).filter(w=>w.length>=3&&w.length<=8&&[...w].every(ch=>entry[0].includes(ch))))]}
+function validWords(entry){
+ const available=[...entry[0]].reduce((m,c)=>(m[c]=(m[c]||0)+1,m),{});
+ return [...new Set(entry[1].split(/\\s+/).map(clean).filter(w=>{
+  if(w.length<3||w.length>8)return false;
+  const used={};for(const c of w){used[c]=(used[c]||0)+1;if(used[c]>(available[c]||0))return false;}
+  return true;
+ }))];
+}
 function current(){return BANK[puzzleIndex%BANK.length]}
 function shuffle(s,seed){let a=[...s];for(let i=a.length-1;i>0;i--){let j=(seed*31+i*17)% (i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
 function notify(t){$("notice").textContent=t;$("notice").classList.add("show");clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$("notice").classList.remove("show"),3200)}
 function render(){
  const [letters]=current();$("rack").innerHTML=shuffle(letters,round).map(ch=>'<div class="tile">'+ch+'</div>').join("");
- $("goal").textContent=found.length+"/60";$("level").textContent="LEVEL "+(1+Math.floor(found.length/15));
+ $("goal").textContent=totalFound+"/60";$("level").textContent="LEVEL "+level;
  $("roundline").textContent="ROUND "+round+"   ·   "+String(seconds).padStart(2,"0")+"s LEFT   ·   "+found.length+" WORDS FOUND";
  $("bar").style.width=(seconds/55*100)+"%";
  const groups=[8,7,6,5,4,3].map(n=>({n,words:found.filter(w=>w.length===n)}));
@@ -178,10 +185,10 @@ window.submitChatWord=(id,name,raw)=>{
  const [letters,rawAnswers]=current();const answers=validWords(current());
  if(!answers.includes(word))return {ok:false,reason:"invalid"};
  if(found.includes(word))return {ok:false,reason:"duplicate"};
- found.push(word);const pts=word.length*10+(word.length===letters.length?50:0);
+ found.push(word);totalFound++;const pts=word.length*10+(word.length===letters.length?50:0);
  if(!scores[id])scores[id]={name:String(name).slice(0,18),points:0};scores[id].points+=pts;
  notify(String(name).toUpperCase()+" FOUND "+word+"  +"+pts+" PTS");render();
- if(found.length>=60){notify("60 WORD GOAL CLEARED! NEW LEVEL!");found=[];round++;puzzleIndex++;seconds=55;seen.clear()}
+ if(totalFound>=60){notify("60 WORD GOAL CLEARED! LEVEL UP!");totalFound=0;level++;}
  return {ok:true,points:pts,word};
 };
 function nextRound(){round++;puzzleIndex++;seconds=55;found=[];seen.clear();render()}
