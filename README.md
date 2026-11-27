@@ -47,7 +47,7 @@ The workflow runs for up to 350 minutes because of GitHub-hosted runner limits. 
 
 The live overlay is rendered directly into the FFmpeg video by `word_game.py` (no OBS/browser source required). Viewers use the seven displayed letters to find words and submit them in YouTube chat:
 
-`!word PLANET`
+`!world PLANET`
 
 - Words are checked against the current round's curated answer list and available letters.
 - Each valid word can only be claimed once per round.
