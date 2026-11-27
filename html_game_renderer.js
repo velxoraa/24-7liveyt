@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import sharp from "sharp";
 import { appendFile, readFile, rename } from "node:fs/promises";
 import { existsSync } from "node:fs";
-const WIDTH=1280,HEIGHT=720,OUT=process.stdout;
+const WIDTH=854,HEIGHT=480,OUT=process.stdout;
 const OUTPUT_FPS=30, OVERLAY_FPS=5, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
 const QUEUE="word_messages.jsonl";
 let browser,page,queueBusy=false;
