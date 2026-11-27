@@ -95,10 +95,10 @@ function handleIncomingMessage({ authorId, authorName, avatar, isModerator, text
   if (!authorId || !message) return;
   const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
   if (bgMatch) queueBackgroundChange(bgMatch[1], authorName || authorId);
-  const quizMatch = message.trim().match(/^(?:!quiz|!answer|!q)\\s+([ABCD])$/i);
+  const quizMatch = message.trim().match(/^(?:!quiz|!answer|!q)\s+([ABCD])$/i);
   if (quizMatch) {
     const vote = { id: authorId, name: authorName || authorId, answer: quizMatch[1].toUpperCase(), at: Date.now() };
-    quizVoteQueue = quizVoteQueue.then(() => appendFile("quiz_votes.jsonl", JSON.stringify(vote) + "\\n", "utf8"))
+    quizVoteQueue = quizVoteQueue.then(() => appendFile("quiz_votes.jsonl", JSON.stringify(vote) + "\n", "utf8"))
       .catch(error => console.error("Could not record quiz vote:", error.message));
     console.log(`Quiz vote received from ${authorName || authorId}: ${vote.answer}`);
   }
