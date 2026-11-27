@@ -43,7 +43,8 @@ class WordGame:
 
     def puzzle(self, round_no):
         idx = self.puzzle_order[round_no % len(self.puzzle_order)]
-        letters, words = PUZZLES[idx]\n        return letters, [word.upper() for word in words if can_make(word, letters)]
+        letters, words = PUZZLES[idx]
+        return letters, [word.upper() for word in words if can_make(word, letters)]
 
     def consume(self):
         if not VOTES_FILE.exists():
