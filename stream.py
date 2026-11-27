@@ -96,6 +96,7 @@ def start_background_decoder(path: Path) -> subprocess.Popen:
     command = [
         "ffmpeg", "-hide_banner", "-loglevel", "error",
         *input_args, "-an", "-vf", common_filter,
+        "-thread_queue_size", "512", "-probesize", "32", "-analyzeduration", "0",
         "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"
     ]
     return subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
@@ -146,9 +147,10 @@ def main() -> int:
         "ffmpeg", "-hide_banner", "-loglevel", "info",
         "-f", "rawvideo", "-pix_fmt", "rgb24",
         "-s", f"{WIDTH}x{HEIGHT}", "-r", str(FPS), "-i", "pipe:0",
+        "-thread_queue_size", "512", "-probesize", "32", "-analyzeduration", "0",
         "-f", "s16le", "-ar", "44100", "-ac", "2", "-i", "pipe:3",
         "-map", "0:v:0", "-map", "1:a:0",
-        "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-bf", "0",
+        "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-bf", "0", "-pix_fmt", "yuv420p",
         "-b:v", "1500k", "-maxrate", "1500k", "-bufsize", "3000k",
         "-g", "60", "-r", str(FPS),
         "-c:a", "aac", "-b:a", "96k", "-ar", "44100",
