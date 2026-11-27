@@ -47,7 +47,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          npm install
+          npm install\n          npx playwright install --with-deps chromium
 
       - name: Validate configuration and media
         shell: bash
@@ -83,7 +83,7 @@ jobs:
       - name: Validate quiz overlay and chat command syntax
         shell: bash
         run: |
-          python -m py_compile stream.py word_game.py analytics.py
+          python -m py_compile stream.py analytics.py\n          node --check html_game_renderer.js
           node --check chat_reader.js
 
       - name: Start stream and public chat reader
