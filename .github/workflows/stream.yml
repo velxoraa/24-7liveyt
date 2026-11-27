@@ -80,6 +80,12 @@ jobs:
           node --version
           python --version
 
+      - name: Validate quiz overlay and chat command syntax
+        shell: bash
+        run: |
+          python -m py_compile stream.py quiz_game.py analytics.py
+          node --check chat_reader.js
+
       - name: Start stream and public chat reader
         shell: bash
         run: |
