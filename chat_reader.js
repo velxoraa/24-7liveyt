@@ -1,7 +1,7 @@
 import { Innertube, YTNodes } from "youtubei.js";
 import { spawn } from "node:child_process";
 import { google } from "googleapis";
-import { writeFile, rename } from "node:fs/promises";
+import { writeFile, rename, appendFile } from "node:fs/promises";
 
 const VIDEO_ID = process.env.YT_VIDEO_ID || "FhD_vXt8MEM";
 const ANALYTICS_URL = (process.env.ANALYTICS_URL || "https://kaxmok-analytics.kaxxmok.workers.dev").replace(/\/$/, "");
@@ -13,7 +13,7 @@ let python = null;
 let stopping = false;
 let receivedMessages = 0;
 let workerAccepted = 0;
-let bgWriteQueue = Promise.resolve();
+let bgWriteQueue = Promise.resolve();\nlet quizVoteQueue = Promise.resolve();
 let youtubeApi = null;
 let liveChatId = null;
 let ownerChannelId = "";
@@ -95,6 +95,13 @@ function handleIncomingMessage({ authorId, authorName, avatar, isModerator, text
   if (!authorId || !message) return;
   const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
   if (bgMatch) queueBackgroundChange(bgMatch[1], authorName || authorId);
+  const quizMatch = message.trim().match(/^(?:!quiz|!answer|!q)\\s+([ABCD])$/i);
+  if (quizMatch) {
+    const vote = { id: authorId, name: authorName || authorId, answer: quizMatch[1].toUpperCase(), at: Date.now() };
+    quizVoteQueue = quizVoteQueue.then(() => appendFile("quiz_votes.jsonl", JSON.stringify(vote) + "\\n", "utf8"))
+      .catch(error => console.error("Could not record quiz vote:", error.message));
+    console.log(`Quiz vote received from ${authorName || authorId}: ${vote.answer}`);
+  }
   if (ownerChannelId && authorId === ownerChannelId) return;
   const event = { author_id: authorId, author: authorName || authorId, avatar_url: avatar || "", is_moderator: Boolean(isModerator), text: message };
   if (!python.stdin.write(JSON.stringify(event) + "\n")) console.warn("Analytics bridge is backpressured; Node is buffering chat events.");
