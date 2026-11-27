@@ -143,7 +143,7 @@ class WordGame:
         d.rounded_rectangle((bx,by,bx+bw,by+16),radius=8,fill=deep,outline=lilac,width=2)
         remaining=max(0,ROUND_SECONDS-sec)
         d.rounded_rectangle((bx,by,bx+int(bw*remaining/ROUND_SECONDS),by+16),radius=8,fill=cyan)
-        d.text((bx,by+23),f"ROUND {round_no+1}     {remaining:02d}s LEFT     TYPE  !WORD YOURWORD",font=small,fill=white)
+        d.text((bx,by+23),f"ROUND {round_no+1}     {remaining:02d}s LEFT     TYPE  !WORLD YOURWORD",font=small,fill=white)
         # Found word slots grouped by length, up to 4 rows
         groups={n:sorted(wd for wd in found if len(wd)==n) for n in (7,6,5,4)}
         col_x=[x+35,x+440,x+845]
