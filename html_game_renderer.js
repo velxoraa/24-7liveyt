@@ -10,7 +10,7 @@ async function consume(){
  try{
   const tmp=QUEUE+".processing";await rename(QUEUE,tmp).catch(()=>{});
   let lines=[];try{lines=(await readFile(tmp,"utf8")).split(/\r?\n/).filter(Boolean)}catch{}
-  for(const line of lines){try{const e=JSON.parse(line);const r=await page.evaluate(({id,name,word})=>window.submitChatWord(id,name,word),e);if(r?.ok)console.log("WORD_ACCEPTED "+e.name+" "+r.word+" +"+r.points);else if(r?.reason==="duplicate")console.log("WORD_DUPLICATE "+e.word)}catch(err){console.error("Word event error",err.message)}}
+  for(const line of lines){try{const e=JSON.parse(line);const r=await page.evaluate(({id,name,word})=>window.submitChatWord(id,name,word),e);if(r?.ok)console.error("WORD_ACCEPTED "+e.name+" "+r.word+" +"+r.points);else if(r?.reason==="duplicate")console.error("WORD_DUPLICATE "+e.word)}catch(err){console.error("Word event error",err.message)}}
   await import("node:fs/promises").then(m=>m.unlink(tmp).catch(()=>{}));
  }finally{queueBusy=false}
 }
@@ -21,7 +21,7 @@ async function main(){
  console.error("HTML ANAGRAM RENDERER READY");
  while(true){
   await consume();
-  const png=await page.screenshot({type:"png"});
+  const png=await page.screenshot({type:"png",omitBackground:true});
   const raw=await sharp(png).ensureAlpha().raw().toBuffer();
   if(!OUT.write(raw))await new Promise(resolve=>OUT.once("drain",resolve));
   await new Promise(resolve=>setTimeout(resolve,33));
