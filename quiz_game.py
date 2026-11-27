@@ -74,7 +74,7 @@ class QuizGame:
   barw=int((w-56)*max(0,(ROUND_SECONDS-sec)/ROUND_SECONDS))
   d.rounded_rectangle((x+28,y+h-30,x+w-28,y+h-24),radius=4,fill=(255,255,255,30))
   d.rounded_rectangle((x+28,y+h-30,x+28+barw,y+h-24),radius=4,fill=gold)
-  d.text((x+28,y+h-52),f"ANSWER IN CHAT: A / B / C / D     •     {max(0,ROUND_SECONDS-sec)}s",font=small,fill=muted)
+  d.text((x+28,y+h-52),f"CHAT: !quiz A/B/C/D     •     {max(0,ROUND_SECONDS-sec)}s",font=small,fill=muted)
   bx,by,bw,bh=842,42,320,350
   d.rounded_rectangle((bx,by,bx+bw,by+bh),radius=24,fill=(8,12,21,220),outline=(255,255,255,35),width=2)
   d.text((bx+24,by+24),"♛  QUIZ LEADERBOARD",font=small,fill=gold)
