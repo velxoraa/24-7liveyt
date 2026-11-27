@@ -19,7 +19,6 @@ BACKGROUND = ROOT / os.environ.get(
     "assets/backgrounds/WhatsApp Video 2026-11-14 at 4.16.22 PM.mp4",
 )
 BG_COMMAND_FILE = ROOT / "bg_command.txt"
-GAME_COMMAND_FILE = ROOT / "game_command.txt"
 SONG_COMMAND_FILE = ROOT / "song_command.txt"
 YT_STREAM_KEY = os.environ.get("YT_STREAM_KEY", "").strip()
 RTMP_URL = os.environ.get("YOUTUBE_RTMP_URL", "rtmp://a.rtmp.youtube.com/live2").rstrip("/")
@@ -72,14 +71,6 @@ def start_song_decoder(path: Path) -> subprocess.Popen:
         "-vn", "-f", "s16le", "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2", "pipe:1"
     ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
 
-
-def read_game_command() -> str | None:
-    try:
-        value = GAME_COMMAND_FILE.read_text(encoding="utf-8").strip().lower()
-        GAME_COMMAND_FILE.unlink(missing_ok=True)
-        return value if value in {"off", "anagram"} else None
-    except FileNotFoundError:
-        return None
 
 
 def take_song_command(songs: list[Path]) -> int | None:
@@ -203,6 +194,7 @@ def main() -> int:
         print(f"Loaded {len(list(SONGS_DIR.glob('*')))} directory entries; playlist has {REPEATS} shuffled rounds.", flush=True)
         print("Starting FFmpeg livestream; audio encoder stays running during background changes.", flush=True)
         audio_read_fd, audio_write_fd = os.pipe()
+        encoder_command[encoder_command.index("pipe:3")] = f"pipe:{audio_read_fd}"
         encoder = subprocess.Popen(encoder_command, stdin=subprocess.PIPE, pass_fds=(audio_read_fd,))
         os.close(audio_read_fd)
         audio_read_fd = None
@@ -214,9 +206,6 @@ def main() -> int:
 
         audio_bytes_per_frame = 44100 * 2 * 2 // FPS
         while encoder.poll() is None:
-            game_command = read_game_command()
-            if game_command is not None:
-                print(f"Game visibility command: !game {game_command}", flush=True)
             requested_song = take_song_command(songs)
             if requested_song is not None:
                 song_index = (song_index + 1) % len(songs) if requested_song == -1 else requested_song
