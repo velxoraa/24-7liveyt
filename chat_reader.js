@@ -96,12 +96,11 @@ function handleIncomingMessage({ authorId, authorName, avatar, isModerator, text
   if (!authorId || !message) return;
   const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
   if (bgMatch) queueBackgroundChange(bgMatch[1], authorName || authorId);
-  const wordMatch = message.trim().match(/^!world\s+([A-Za-z]{3,7})$/i);
-  if (wordMatch) {
-    const vote = { id: authorId, name: authorName || authorId, word: wordMatch[1].toUpperCase(), at: Date.now() };
-    wordVoteQueue = wordVoteQueue.then(() => appendFile("word_votes.jsonl", JSON.stringify(vote) + "\n", "utf8"))
-      .catch(error => console.error("Could not record word submission:", error.message));
-    console.log(`Word submission received from ${authorName || authorId}: ${vote.word}`);
+  const directWord = message.trim().match(/^([A-Za-z]{3,8})$/);
+  if (directWord) {
+    const vote = { id: authorId, name: authorName || authorId, word: directWord[1].toUpperCase(), at: Date.now() };
+    wordVoteQueue = wordVoteQueue.then(() => appendFile("word_messages.jsonl", JSON.stringify(vote) + "\n", "utf8"))
+      .catch(error => console.error("Could not record direct word answer:", error.message));
   }
   if (ownerChannelId && authorId === ownerChannelId) return;
   const event = { author_id: authorId, author: authorName || authorId, avatar_url: avatar || "", is_moderator: Boolean(isModerator), text: message };
