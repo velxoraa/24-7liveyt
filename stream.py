@@ -9,6 +9,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from quiz_game import QuizGame
+
 ROOT = Path(__file__).resolve().parent
 SONGS_DIR = ROOT / "songs"
 BACKGROUND_DIR = ROOT / "assets" / "backgrounds"
@@ -152,6 +154,7 @@ def main() -> int:
 
     encoder = None
     decoder = None
+    quiz = QuizGame()
     try:
         print(f"Loaded {len(list(SONGS_DIR.glob('*')))} directory entries; playlist has {REPEATS} shuffled rounds.", flush=True)
         print("Starting FFmpeg livestream; audio encoder stays running during background changes.", flush=True)
@@ -184,6 +187,7 @@ def main() -> int:
                 raise RuntimeError(f"Could not read video frame from background: {current.name}")
 
             try:
+                frame = quiz.render(frame, WIDTH, HEIGHT)
                 encoder.stdin.write(frame)
             except BrokenPipeError:
                 break
