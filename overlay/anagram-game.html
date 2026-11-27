@@ -826,8 +826,11 @@
       N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:4, W:4, X:8, Y:4, Z:10
     };
 
-    let puzzleIndex = 0, round = 1, seconds = 55, found = [], scores = {}, totalFound = 0, level = 1, noticeTimer = null;
+    const ROUND_SECONDS = 55;
+    let puzzleIndex = 0, round = 1, seconds = ROUND_SECONDS, found = [], scores = {}, totalFound = 0, level = 1, noticeTimer = null;
     let lastRenderedRound = -1;
+    let roundEndsAt = performance.now() + ROUND_SECONDS * 1000;
+    let roundTransitioning = false;
 
     const $ = id => document.getElementById(id);
     const clean = s => s.toUpperCase().replace(/[^A-Z]/g, "");
@@ -897,7 +900,7 @@
         `<span class="pill-stat"><span class="accent">${found.length}</span> / ${totalAnswers} WORDS FOUND</span>`;
 
       const bar = $("bar");
-      bar.style.width = (seconds / 55 * 100) + "%";
+      bar.style.width = (seconds / ROUND_SECONDS * 100) + "%";
       bar.classList.toggle("warn", seconds <= 20 && seconds > 10);
       bar.classList.toggle("danger", seconds <= 10);
 
@@ -962,18 +965,36 @@
     };
 
     function nextRound() {
+      if (roundTransitioning) return;
+      roundTransitioning = true;
       round++;
       puzzleIndex++;
-      seconds = 55;
+      seconds = ROUND_SECONDS;
       found = [];
+      roundEndsAt = performance.now() + ROUND_SECONDS * 1000;
+      roundTransitioning = false;
       render();
     }
 
+    // Use an absolute monotonic deadline instead of subtracting 1 each tick.
+    // Delayed browser callbacks can no longer make the countdown lose extra seconds.
+    let lastTimerValue = seconds;
     setInterval(() => {
-      seconds--;
-      if (seconds <= 0) nextRound();
-      else render();
-    }, 1000);
+      const remainingMs = Math.max(0, roundEndsAt - performance.now());
+      const nextSeconds = Math.ceil(remainingMs / 1000);
+
+      if (nextSeconds <= 0) {
+        nextRound();
+        lastTimerValue = seconds;
+        return;
+      }
+
+      if (nextSeconds !== lastTimerValue) {
+        seconds = nextSeconds;
+        lastTimerValue = nextSeconds;
+        render();
+      }
+    }, 100);
 
     render();
   </script>
