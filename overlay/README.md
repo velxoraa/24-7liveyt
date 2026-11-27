@@ -6,7 +6,7 @@ The game is rendered directly into the livestream by `word_game.py`, composited 
 
 Type a word using the seven letters shown on screen:
 
-`!word PLANET`
+`!world PLANET`
 
 Rules:
 - 3–7 letters.
