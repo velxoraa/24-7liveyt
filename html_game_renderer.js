@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { appendFile, readFile, rename } from "node:fs/promises";
 import { existsSync } from "node:fs";
 const WIDTH=1280,HEIGHT=720,OUT=process.stdout;
+const OUTPUT_FPS=30, OVERLAY_FPS=5, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
 const QUEUE="word_messages.jsonl";
 let browser,page,queueBusy=false;
 async function consume(){
@@ -21,10 +22,13 @@ async function main(){
  console.error("HTML ANAGRAM RENDERER READY");
  while(true){
   await consume();
+  // Chromium screenshots are expensive. Capture at 5 FPS and repeat each
+  // overlay frame 6 times; the background/encoder remain at 30 FPS.
   const png=await page.screenshot({type:"png",omitBackground:true});
   const raw=await sharp(png).ensureAlpha().raw().toBuffer();
-  if(!OUT.write(raw))await new Promise(resolve=>OUT.once("drain",resolve));
-  await new Promise(resolve=>setTimeout(resolve,33));
+  for(let i=0;i<DUPLICATE_FRAMES;i++){
+   if(!OUT.write(raw))await new Promise(resolve=>OUT.once("drain",resolve));
+  }
  }
 }
 main().catch(e=>{console.error("HTML GAME RENDERER ERROR",e);process.exit(1)});
