@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from word_game import WordGame
+from PIL import Image\nfrom subprocess import PIPE
 
 ROOT = Path(__file__).resolve().parent
 SONGS_DIR = ROOT / "songs"
@@ -154,7 +154,7 @@ def main() -> int:
 
     encoder = None
     decoder = None
-    game = WordGame()
+    game_renderer = subprocess.Popen(["node", "html_game_renderer.js"], stdout=subprocess.PIPE, stderr=None, bufsize=0)
     try:
         print(f"Loaded {len(list(SONGS_DIR.glob('*')))} directory entries; playlist has {REPEATS} shuffled rounds.", flush=True)
         print("Starting FFmpeg livestream; audio encoder stays running during background changes.", flush=True)
@@ -194,7 +194,7 @@ def main() -> int:
 
         return encoder.returncode if encoder.returncode is not None else 1
     finally:
-        for process in (decoder, encoder):
+        for process in (decoder, encoder, game_renderer):
             if process is not None and process.poll() is None:
                 process.terminate()
                 try:
