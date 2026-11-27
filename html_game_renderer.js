@@ -2,8 +2,8 @@ import { chromium } from "playwright";
 import sharp from "sharp";
 import { appendFile, readFile, rename } from "node:fs/promises";
 import { existsSync } from "node:fs";
-const WIDTH=1280,HEIGHT=720,OUT=process.stdout;
-const OUTPUT_FPS=30, OVERLAY_FPS=5, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
+const WIDTH=1280,HEIGHT=720,OUT=process.stdout;\nconst STREAM_WIDTH=854,STREAM_HEIGHT=480;
+const OUTPUT_FPS=20, OVERLAY_FPS=5, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
 const QUEUE="word_messages.jsonl";
 let browser,page,queueBusy=false;
 async function consume(){
@@ -26,7 +26,7 @@ async function main(){
   // Capture on a fixed 200ms cadence (5 overlay FPS). Repeat each image
   // six times to feed the 30 FPS compositor without bursty frame batches.
   const png=await page.screenshot({type:"png",omitBackground:true});
-  const raw=await sharp(png).ensureAlpha().raw().toBuffer();
+  const raw=await sharp(png).resize(STREAM_WIDTH,STREAM_HEIGHT,{fit:"fill"}).ensureAlpha().raw().toBuffer();
   for(let i=0;i<DUPLICATE_FRAMES;i++){
    if(!OUT.write(raw))await new Promise(resolve=>OUT.once("drain",resolve));
   }
@@ -36,5 +36,5 @@ async function main(){
   else nextCapture=Date.now();
  }
 }
-main().catch(e=>{console.error("HTML GAME RENDERER ERROR",e);process.exit(1)});
+main().catch(e=>{if(e?.code!=="EPIPE")console.error("HTML GAME RENDERER ERROR",e);process.exit(e?.code==="EPIPE"?0:1)});\nOUT.on("error",e=>{if(e?.code==="EPIPE")process.exit(0);console.error("Renderer output error",e);process.exit(1)});
 process.on("SIGTERM",async()=>{await browser?.close();process.exit(0)});
