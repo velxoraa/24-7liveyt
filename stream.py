@@ -154,8 +154,9 @@ def main() -> int:
 
     encoder = None
     decoder = None
-    game_renderer = subprocess.Popen(["node", "html_game_renderer.js"], stdout=subprocess.PIPE, stderr=None, bufsize=0)
+    game_renderer = None
     try:
+        game_renderer = subprocess.Popen(["node", "html_game_renderer.js"], stdout=subprocess.PIPE, stderr=None, bufsize=0)
         print(f"Loaded {len(list(SONGS_DIR.glob('*')))} directory entries; playlist has {REPEATS} shuffled rounds.", flush=True)
         print("Starting FFmpeg livestream; audio encoder stays running during background changes.", flush=True)
         encoder = subprocess.Popen(encoder_command, stdin=subprocess.PIPE)
@@ -187,8 +188,13 @@ def main() -> int:
                 raise RuntimeError(f"Could not read video frame from background: {current.name}")
 
             try:
-                frame = game.render(frame, WIDTH, HEIGHT)
-                encoder.stdin.write(frame)
+                overlay_bytes = read_exact(game_renderer.stdout, WIDTH * HEIGHT * 4)
+                if not overlay_bytes:
+                    raise RuntimeError("HTML game renderer stopped unexpectedly")
+                base = Image.frombytes("RGB", (WIDTH, HEIGHT), frame).convert("RGBA")
+                overlay = Image.frombytes("RGBA", (WIDTH, HEIGHT), overlay_bytes)
+                base.alpha_composite(overlay)
+                encoder.stdin.write(base.convert("RGB").tobytes())
             except BrokenPipeError:
                 break
 
