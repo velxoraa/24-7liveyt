@@ -104,7 +104,7 @@ function load(){
  clearInterval(interval);locked=false;seconds=20;
  const q=quiz[index%quiz.length];$("round").textContent="ROUND "+String(index+1).padStart(2,"0")+" / "+quiz.length;
  $("category").textContent=q.c;$("question").textContent=q.q;$("status").textContent="FAST ANSWERS EARN MORE";
- $("answers").innerHTML=q.a.map((x,i)=>'<div class="answer" id="a'+i+'"><span class="key">'+String.fromCharCode(65+i)+'</span><span>'+escapeHtml(x)+'</span></div>').join("");
+ $("answers").innerHTML=q.a.map((x,i)=>'<div class="answer" id="a'+i+'" onclick="answer('+i+')"><span class="key">'+String.fromCharCode(65+i)+'</span><span>'+escapeHtml(x)+'</span></div>').join("");
  $("timer").textContent=seconds;$("fill").style.transform="scaleX(1)";
  interval=setInterval(()=>{seconds--; $("timer").textContent=seconds;$("fill").style.transform="scaleX("+Math.max(0,seconds/20)+")";if(seconds<=0){clearInterval(interval);locked=true;$("status").textContent="TIME UP · NEXT ROUND";$("a"+q.k).classList.add("correct")}},1000);
 }
