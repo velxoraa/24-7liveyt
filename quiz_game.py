@@ -86,4 +86,4 @@ class QuizGame:
    d.text((bx+63,yy+7),self.names.get(uid,"Viewer")[:18],font=small,fill=white)
    d.text((bx+bw-75,yy+7),str(pts),font=small,fill=gold)
   d.text((bx+24,by+bh-32),"CORRECT ANSWER  +100 PTS",font=small,fill=muted)
-  return image.convert("RGB").tobytes()
+  image.alpha_composite(layer)\n  return image.convert("RGB").tobytes()
