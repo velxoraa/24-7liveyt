@@ -43,7 +43,8 @@ class QuizGame:
    self.last_vote=time.monotonic()
  def update_scores(self):
   r,sec=self.current()
-  if sec < ROUND_SECONDS-1: return
+  if sec < ROUND_SECONDS-1 or r in self.scored_rounds: return
+  self.scored_rounds.add(r)
   q=QUESTIONS[r%len(QUESTIONS)]
   for uid,ans in self.votes.get(r,{}).items():
    if ans== "ABCD"[q[3]]:
