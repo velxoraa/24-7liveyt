@@ -191,10 +191,12 @@ def main() -> int:
                 overlay_bytes = read_exact(game_renderer.stdout, WIDTH * HEIGHT * 4)
                 if not overlay_bytes:
                     raise RuntimeError("HTML game renderer stopped unexpectedly")
-                base = Image.frombytes("RGB", (WIDTH, HEIGHT), frame).convert("RGBA")
+                # Composite directly onto RGB to avoid RGB->RGBA and RGBA->RGB
+                # conversions on every 1280x720 frame.
+                base = Image.frombytes("RGB", (WIDTH, HEIGHT), frame)
                 overlay = Image.frombytes("RGBA", (WIDTH, HEIGHT), overlay_bytes)
-                base.alpha_composite(overlay)
-                encoder.stdin.write(base.convert("RGB").tobytes())
+                base.paste(overlay, (0, 0), overlay)
+                encoder.stdin.write(base.tobytes())
             except BrokenPipeError:
                 break
 
