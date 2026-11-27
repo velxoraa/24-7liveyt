@@ -966,6 +966,13 @@
       return { ok: true, points: pts, word };
     };
 
+    window.setGameVisible = enabled => {
+      const cabinet = $("cabinet");
+      cabinet.style.display = enabled ? "block" : "none";
+      if (enabled) render();
+      return { ok: true, enabled };
+    };
+
     function nextRound() {
       if (roundTransitioning) return;
       roundTransitioning = true;
