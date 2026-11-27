@@ -2,7 +2,8 @@ import { chromium } from "playwright";
 import sharp from "sharp";
 import { appendFile, readFile, rename } from "node:fs/promises";
 import { existsSync } from "node:fs";
-const WIDTH=1280,HEIGHT=720,OUT=process.stdout;\nconst STREAM_WIDTH=854,STREAM_HEIGHT=480;
+const WIDTH=1280,HEIGHT=720,OUT=process.stdout;
+const STREAM_WIDTH=854,STREAM_HEIGHT=480;
 const OUTPUT_FPS=20, OVERLAY_FPS=5, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
 const QUEUE="word_messages.jsonl";
 let browser,page,queueBusy=false;
@@ -36,5 +37,6 @@ async function main(){
   else nextCapture=Date.now();
  }
 }
-main().catch(e=>{if(e?.code!=="EPIPE")console.error("HTML GAME RENDERER ERROR",e);process.exit(e?.code==="EPIPE"?0:1)});\nOUT.on("error",e=>{if(e?.code==="EPIPE")process.exit(0);console.error("Renderer output error",e);process.exit(1)});
+main().catch(e=>{if(e?.code!=="EPIPE")console.error("HTML GAME RENDERER ERROR",e);process.exit(e?.code==="EPIPE"?0:1)});
+OUT.on("error",e=>{if(e?.code==="EPIPE")process.exit(0);console.error("Renderer output error",e);process.exit(1)});
 process.on("SIGTERM",async()=>{await browser?.close();process.exit(0)});
