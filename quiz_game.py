@@ -20,7 +20,7 @@ QUESTIONS = [
 ]
 class QuizGame:
  def __init__(self):
-  self.started=time.monotonic(); self.round_no=0; self.votes={}; self.scores={}; self.names={}; self.seen=set(); self.last_vote=0
+  self.started=time.monotonic(); self.round_no=0; self.votes={}; self.scores={}; self.names={}; self.seen=set(); self.last_vote=0; self.scored_rounds=set()
  def current(self):
   elapsed=time.monotonic()-self.started
   return int(elapsed//ROUND_SECONDS), int(elapsed%ROUND_SECONDS)
