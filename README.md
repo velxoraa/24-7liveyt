@@ -45,17 +45,13 @@ The workflow runs for up to 350 minutes because of GitHub-hosted runner limits. 
 
 ## Words On Stream style anagram game
 
-The live overlay is rendered directly into the FFmpeg video by `word_game.py` (no OBS/browser source required). Viewers use the seven displayed letters to find words and submit them in YouTube chat:
+The livestream game is an HTML/CSS/JavaScript overlay in `overlay/anagram-game.html`, rendered with headless Chromium and composited into the existing FFmpeg video. Viewers type answers directly in YouTube chat, for example `planet` — no command prefix.
 
-`!world PLANET`
+The puzzle bank contains more than 100 letter racks. Each round accepts listed words that can be formed from the rack, awards 10 points per letter and a 50-point bonus for using every rack letter, and prevents duplicate words in a round. The screen shows the shuffled rack, timer, discovered words, 60-word goal, level and top word hunters.
 
-- Words are checked against the current round's curated answer list and available letters.
-- Each valid word can only be claimed once per round.
-- Points are based on word length, with a bonus for using all seven letters.
-- The stream overlay shows the letter rack, round timer, discovered word slots, 60-word goal, and top word hunters.
-- The game uses the existing public chat reader; background switching and music playlist remain in the same stream process.
+The game uses the existing public chat reader. The background switching command and continuous MP3 playlist remain in the same stream process.
 
-The in-stream game leaderboard is currently session-local. It does not yet write anagram scores into the persistent Analytics Worker leaderboard.
+The in-game leaderboard is session-local; persistent Analytics Worker score storage is not connected yet.
 
 ## Notes
 
