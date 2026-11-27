@@ -83,7 +83,8 @@ jobs:
       - name: Validate quiz overlay and chat command syntax
         shell: bash
         run: |
-          python -m py_compile stream.py analytics.py\n          node --check html_game_renderer.js
+          python -m py_compile stream.py analytics.py
+          node --check html_game_renderer.js
           node --check chat_reader.js
 
       - name: Start stream and public chat reader
