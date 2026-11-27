@@ -96,7 +96,7 @@ function handleIncomingMessage({ authorId, authorName, avatar, isModerator, text
   if (!authorId || !message) return;
   const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
   if (bgMatch) queueBackgroundChange(bgMatch[1], authorName || authorId);
-  const wordMatch = message.trim().match(/^!word\s+([A-Za-z]{3,7})$/i);
+  const wordMatch = message.trim().match(/^!world\s+([A-Za-z]{3,7})$/i);
   if (wordMatch) {
     const vote = { id: authorId, name: authorName || authorId, word: wordMatch[1].toUpperCase(), at: Date.now() };
     wordVoteQueue = wordVoteQueue.then(() => appendFile("word_votes.jsonl", JSON.stringify(vote) + "\n", "utf8"))
