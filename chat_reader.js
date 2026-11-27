@@ -7,6 +7,18 @@ const VIDEO_ID = process.env.YT_VIDEO_ID || "FhD_vXt8MEM";
 const ANALYTICS_URL = (process.env.ANALYTICS_URL || "https://kaxmok-analytics.kaxxmok.workers.dev").replace(/\/$/, "");
 const PYTHON = process.env.PYTHON || "python";
 const BG_COMMAND_FILE = "bg_command.txt";
+const GAME_COMMAND_FILE = "game_command.txt";
+const SONG_COMMAND_FILE = "song_command.txt";
+let commandWriteQueue = Promise.resolve();
+
+function queueStreamCommand(filename, value, label, author) {
+  const tempPath = filename + "." + process.pid + ".tmp";
+  commandWriteQueue = commandWriteQueue
+    .then(() => writeFile(tempPath, String(value) + "\n", "utf8"))
+    .then(() => rename(tempPath, filename))
+    .then(() => console.log(label + " requested by " + author))
+    .catch(error => console.error("Could not queue " + label + ":", error.message));
+}
 
 let liveChat = null;
 let python = null;
@@ -94,6 +106,11 @@ function sendReply(message) {
 
 function handleIncomingMessage({ authorId, authorName, avatar, isModerator, text: message }) {
   if (!authorId || !message) return;
+  const gameMatch = message.trim().match(/^!game\s+(off|anagram)$/i);
+  if (gameMatch) queueStreamCommand(GAME_COMMAND_FILE, gameMatch[1].toLowerCase(), "Game mode !game " + gameMatch[1].toLowerCase(), authorName || authorId);
+  if (/^!next$/i.test(message.trim())) queueStreamCommand(SONG_COMMAND_FILE, "next", "!next song skip", authorName || authorId);
+  const songMatch = message.trim().match(/^!song\s+(\d+)$/i);
+  if (songMatch) queueStreamCommand(SONG_COMMAND_FILE, songMatch[1], "!song " + songMatch[1], authorName || authorId);
   const bgMatch = message.trim().match(/^!bg\s+(\d+)$/i);
   if (bgMatch) queueBackgroundChange(bgMatch[1], authorName || authorId);
   const directWord = message.trim().match(/^([A-Za-z]{3,8})$/);
