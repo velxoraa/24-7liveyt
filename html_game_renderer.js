@@ -6,6 +6,7 @@ const WIDTH=1280,HEIGHT=720,OUT=process.stdout;
 const STREAM_WIDTH=854,STREAM_HEIGHT=480;
 const OUTPUT_FPS=20, OVERLAY_FPS=5, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
 const QUEUE="word_messages.jsonl";
+const GAME_COMMAND="game_command.txt";
 let browser,page,queueBusy=false;
 async function consume(){
  if(queueBusy||!existsSync(QUEUE))return;queueBusy=true;
@@ -16,6 +17,19 @@ async function consume(){
   await import("node:fs/promises").then(m=>m.unlink(tmp).catch(()=>{}));
  }finally{queueBusy=false}
 }
+async function consumeGameCommand(){
+ if(!existsSync(GAME_COMMAND))return;
+ const tmp=GAME_COMMAND+".processing";
+ await rename(GAME_COMMAND,tmp).catch(()=>{});
+ let command="";
+ try{command=(await readFile(tmp,"utf8")).trim().toLowerCase()}catch{}
+ await import("node:fs/promises").then(m=>m.unlink(tmp).catch(()=>{}));
+ if(command==="off"||command==="anagram"){
+  const enabled=command==="anagram";
+  const result=await page.evaluate(value=>window.setGameVisible(value),enabled);
+  console.error("GAME_VISIBILITY "+(enabled?"ON":"OFF")+" "+JSON.stringify(result));
+ }
+}
 async function main(){
  browser=await chromium.launch({headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
  page=await browser.newPage({viewport:{width:WIDTH,height:HEIGHT},deviceScaleFactor:1});
@@ -23,6 +37,7 @@ async function main(){
  console.error("HTML ANAGRAM RENDERER READY");
  let nextCapture=Date.now();
  while(true){
+  await consumeGameCommand();
   await consume();
   // Capture on a fixed 200ms cadence (5 overlay FPS). Repeat each image
   // six times to feed the 30 FPS compositor without bursty frame batches.
