@@ -7,13 +7,28 @@ const STREAM_WIDTH=854,STREAM_HEIGHT=480;
 const OUTPUT_FPS=20, OVERLAY_FPS=5, DUPLICATE_FRAMES=OUTPUT_FPS/OVERLAY_FPS;
 const QUEUE="word_messages.jsonl";
 const GAME_COMMAND="game_command.txt";
-let browser,page,queueBusy=false;
+let browser,page,queueBusy=false,scoreSyncQueue=Promise.resolve();
+const ANAGRAM_API_URL=process.env.ANAGRAM_API_URL||"";
+const INGEST_TOKEN=process.env.INGEST_TOKEN||"";
+let scoreApiWarningShown=false;
+async function postAnagramScore(event, result){
+ if(!ANAGRAM_API_URL||!INGEST_TOKEN){if(!scoreApiWarningShown){console.error("ANAGRAM SCORE SYNC DISABLED: set ANAGRAM_API_URL and GitHub secret INGEST_TOKEN.");scoreApiWarningShown=true;}return;}
+ const score={author_id:event.id,author:String(event.name||event.id).slice(0,80),points:result.total_points,ms:result.ms,word:result.word,event_id:`round${result.round}-${event.id}-${result.word}`};
+ const payload={mode:"set",scores:[score]};
+ for(let attempt=1;attempt<=3;attempt++){
+  try{
+   const response=await fetch(ANAGRAM_API_URL,{method:"POST",headers:{"Authorization":`Bearer ${INGEST_TOKEN}`,"Content-Type":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(8000)});
+   if(!response.ok){const detail=(await response.text()).slice(0,300);throw new Error(`HTTP ${response.status}: ${detail}`);}
+   console.error(`ANAGRAM SCORE SYNCED ${score.author} ${score.word} total=${score.points}`);return;
+  }catch(error){if(attempt===3){console.error("ANAGRAM SCORE SYNC FAILED",score.event_id,error.message);return;}await new Promise(resolve=>setTimeout(resolve,attempt*1000));}
+ }
+}
 async function consume(){
  if(queueBusy||!existsSync(QUEUE))return;queueBusy=true;
  try{
   const tmp=QUEUE+".processing";await rename(QUEUE,tmp).catch(()=>{});
   let lines=[];try{lines=(await readFile(tmp,"utf8")).split(/\r?\n/).filter(Boolean)}catch{}
-  for(const line of lines){try{const e=JSON.parse(line);const r=await page.evaluate(({id,name,word})=>window.submitChatWord(id,name,word),e);if(r?.ok)console.error("WORD_ACCEPTED "+e.name+" "+r.word+" +"+r.points);else if(r?.reason==="duplicate")console.error("WORD_DUPLICATE "+e.word)}catch(err){console.error("Word event error",err.message)}}
+  for(const line of lines){try{const e=JSON.parse(line);const r=await page.evaluate(({id,name,word})=>window.submitChatWord(id,name,word),e);if(r?.ok){console.error("WORD_ACCEPTED "+e.name+" "+r.word+" +"+r.points);scoreSyncQueue=scoreSyncQueue.then(()=>postAnagramScore(e,r)).catch(err=>console.error("Score sync queue error",err.message));}else if(r?.reason==="duplicate")console.error("WORD_DUPLICATE "+e.word)}catch(err){console.error("Word event error",err.message)}}
   await import("node:fs/promises").then(m=>m.unlink(tmp).catch(()=>{}));
  }finally{queueBusy=false}
 }
