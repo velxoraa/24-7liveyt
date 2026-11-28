@@ -243,18 +243,9 @@ async function main() {
     }
   });
 
-  liveChat.on("error", error => {
-    console.error("YouTube live chat polling error:", error?.message || error);
-    // Exit so the workflow supervisor restarts the reader instead of leaving
-    // a dead chat connection running forever beside the livestream.
-    setTimeout(() => process.exit(1), 1000);
-  });
-  liveChat.on("end", () => {
-    if (!stopping) {
-      console.error("YouTube live chat connection ended; exiting for supervisor restart.");
-      process.exit(1);
-    }
-  });
+  // Match the previously working chat-reader behavior: log polling errors
+  // without forcing the reader process to exit and repeatedly reconnect.
+  liveChat.on("error", error => console.error("YouTube live chat polling error:", error?.message || error));
   await liveChat.start();
   console.log(`PUBLIC CHAT READER CONNECTED: forwarding messages to ${ANALYTICS_URL}/api/ingest.`);
 
