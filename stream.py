@@ -7,6 +7,8 @@ import random
 import subprocess
 import sys
 import tempfile
+import queue
+import threading
 from pathlib import Path
 
 from PIL import Image
@@ -19,6 +21,8 @@ BACKGROUND = ROOT / os.environ.get(
     "assets/backgrounds/WhatsApp Video 2026-11-14 at 4.16.22 PM.mp4",
 )
 BG_COMMAND_FILE = ROOT / "bg_command.txt"
+GAME_COMMAND_FILE = ROOT / "game_command.txt"
+SONG_COMMAND_FILE = ROOT / "song_command.txt"
 YT_STREAM_KEY = os.environ.get("YT_STREAM_KEY", "").strip()
 RTMP_URL = os.environ.get("YOUTUBE_RTMP_URL", "rtmp://a.rtmp.youtube.com/live2").rstrip("/")
 REPEATS = max(20, int(os.environ.get("PLAYLIST_ROUNDS", "250")))
@@ -55,6 +59,35 @@ def build_playlist() -> Path:
         for song in playlist:
             file.write(f"file '{ffconcat_quote(song)}'\n")
     return Path(filename)
+
+
+def list_songs() -> list[Path]:
+    return sorted(
+        (p for p in SONGS_DIR.iterdir()
+         if p.is_file() and p.suffix.lower() in {".mp3", ".mpeg", ".mp2"}),
+        key=lambda p: p.name.casefold()
+    )
+
+
+def start_song_decoder(path: Path) -> subprocess.Popen:
+    return subprocess.Popen([
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-re", "-i", str(path),
+        "-vn", "-f", "s16le", "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2", "pipe:1"
+    ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
+
+
+def take_song_command(song_count: int) -> int | None:
+    try:
+        raw = SONG_COMMAND_FILE.read_text(encoding="utf-8").strip().lower()
+        SONG_COMMAND_FILE.unlink(missing_ok=True)
+    except FileNotFoundError:
+        return None
+    if raw == "next":
+        return -1
+    if raw.isdigit() and 1 <= int(raw) <= song_count:
+        return int(raw) - 1
+    print(f"Invalid song command {raw!r}; choose !next or !song 1-{song_count}.", flush=True)
+    return None
 
 
 def list_backgrounds() -> list[Path]:
@@ -136,13 +169,25 @@ def main() -> int:
     else:
         print(f"Starting with background: {current.name}", flush=True)
 
-    playlist = build_playlist()
+    songs = list_songs()
+    if not songs:
+        raise RuntimeError(f"No MP3 audio files found in {SONGS_DIR}")
+    song_index = 0
+    print("Available songs (the !song number follows this alphabetical order):", flush=True)
+    for number, path in enumerate(songs, 1):
+        print(f"  !song {number} -> {path.name}", flush=True)
+
+    audio_read_fd, audio_write_fd = os.pipe()
+    audio_stop = threading.Event()
+    audio_commands: queue.Queue[int] = queue.Queue()
+    audio_thread = None
     destination = f"{RTMP_URL}/{YT_STREAM_KEY}"
     encoder_command = [
         "ffmpeg", "-hide_banner", "-loglevel", "info",
         "-f", "rawvideo", "-pix_fmt", "rgb24",
         "-s", f"{WIDTH}x{HEIGHT}", "-r", str(FPS), "-i", "pipe:0",
-        "-re", "-stream_loop", "-1", "-f", "concat", "-safe", "0", "-i", str(playlist),
+        "-thread_queue_size", "512",
+        "-f", "s16le", "-ar", "44100", "-ac", "2", "-i", f"pipe:{audio_read_fd}",
         "-map", "0:v:0", "-map", "1:a:0",
         "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-bf", "0",
         "-b:v", "1500k", "-maxrate", "1500k", "-bufsize", "3000k",
@@ -159,10 +204,69 @@ def main() -> int:
         game_renderer = subprocess.Popen(["node", "html_game_renderer.js"], stdout=subprocess.PIPE, stderr=None, bufsize=0)
         print(f"Loaded {len(list(SONGS_DIR.glob('*')))} directory entries; playlist has {REPEATS} shuffled rounds.", flush=True)
         print("Starting FFmpeg livestream; audio encoder stays running during background changes.", flush=True)
-        encoder = subprocess.Popen(encoder_command, stdin=subprocess.PIPE)
+        encoder = subprocess.Popen(encoder_command, stdin=subprocess.PIPE, pass_fds=(audio_read_fd,))
+        os.close(audio_read_fd)
+        audio_read_fd = -1
+
+        def feed_audio():
+            nonlocal song_index
+            active = start_song_decoder(songs[song_index])
+            print(f"Now playing !song {song_index + 1}: {songs[song_index].name}", flush=True)
+            try:
+                while not audio_stop.is_set():
+                    try:
+                        requested_song = audio_commands.get_nowait()
+                    except queue.Empty:
+                        requested_song = None
+                    if requested_song is not None:
+                        song_index = (song_index + 1) % len(songs) if requested_song < 0 else requested_song
+                        if active.poll() is None:
+                            active.terminate()
+                            try:
+                                active.wait(timeout=2)
+                            except subprocess.TimeoutExpired:
+                                active.kill()
+                                active.wait()
+                        active = start_song_decoder(songs[song_index])
+                        print(f"Song changed to !song {song_index + 1}: {songs[song_index].name}", flush=True)
+
+                    chunk = active.stdout.read(8192)
+                    if not chunk:
+                        if audio_stop.is_set():
+                            break
+                        song_index = (song_index + 1) % len(songs)
+                        active = start_song_decoder(songs[song_index])
+                        print(f"Song ended; now playing !song {song_index + 1}: {songs[song_index].name}", flush=True)
+                        continue
+                    view = memoryview(chunk)
+                    while view and not audio_stop.is_set():
+                        try:
+                            written = os.write(audio_write_fd, view)
+                            view = view[written:]
+                        except BrokenPipeError:
+                            audio_stop.set()
+                            return
+            except OSError as error:
+                if not audio_stop.is_set():
+                    print(f"Audio feeder stopped: {error}", flush=True)
+            finally:
+                if active.poll() is None:
+                    active.terminate()
+                    try:
+                        active.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        active.kill()
+                        active.wait()
+
+        audio_thread = threading.Thread(target=feed_audio, name="song-audio-feeder", daemon=True)
+        audio_thread.start()
         decoder = start_background_decoder(current)
 
         while encoder.poll() is None:
+            song_command = take_song_command(len(songs))
+            if song_command is not None:
+                audio_commands.put(song_command)
+
             requested = take_background_command(backgrounds)
             if requested is not None and requested != current:
                 if decoder and decoder.poll() is None:
@@ -202,6 +306,19 @@ def main() -> int:
 
         return encoder.returncode if encoder.returncode is not None else 1
     finally:
+        audio_stop.set()
+        if audio_write_fd >= 0:
+            try:
+                os.close(audio_write_fd)
+            except OSError:
+                pass
+        if audio_read_fd >= 0:
+            try:
+                os.close(audio_read_fd)
+            except OSError:
+                pass
+        if audio_thread is not None:
+            audio_thread.join(timeout=3)
         for process in (decoder, encoder, game_renderer):
             if process is not None and process.poll() is None:
                 process.terminate()
@@ -210,7 +327,6 @@ def main() -> int:
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
-        playlist.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
